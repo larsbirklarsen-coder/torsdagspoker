@@ -302,7 +302,12 @@ function renderRules(){
     <div class="tbl"><table><tbody>${S.admins.map(a=>`<tr><td>${esc(a)}${a.toLowerCase()===me?` <span class="pill">dig</span>`:""}</td>
       <td class="num">${a.toLowerCase()===me?"":(S.confirmAdmin===a?`<button class="danger" data-act="admin-del-yes" data-email="${esc(a)}">Ja, fjern</button> <button data-act="admin-del-no">Fortryd</button>`:`<button class="danger" data-act="admin-del" data-email="${esc(a)}">Fjern</button>`)}</td></tr>`).join("")}</tbody></table></div>
     <form class="row" id="f-admin"><input type="email" id="new-admin" placeholder="Mailadresse" style="flex:1 1 220px" autocomplete="off"><button type="submit">Giv adgang</button></form>
-    <div class="small muted">Personen logger ind med "Log ind" øverst og får et link på den mail. Alle andre kan se resultaterne uden login.</div></div>`;
+    <div class="small muted">Første gang trykker personen "Log ind" → "få et login-link", åbner linket og vælger en adgangskode herunder. Alle andre kan se resultaterne uden login.</div></div>`;
+  h+=`<form class="card" id="f-pw"><h3>Min adgangskode</h3>
+    <div class="small muted">Bruges til at logge ind i appen på hjemmeskærmen. Mindst 8 tegn.</div>
+    <input type="text" autocomplete="username" value="${esc(me)}" hidden>
+    <div class="row"><input type="password" id="pw1" placeholder="Ny adgangskode" autocomplete="new-password" style="flex:1 1 180px"><input type="password" id="pw2" placeholder="Gentag" autocomplete="new-password" style="flex:1 1 180px"></div>
+    <div class="row"><button class="primary" type="submit">Gem adgangskode</button></div></form>`;
   el.innerHTML=h;
 }
 async function saveSettings(){
@@ -322,24 +327,35 @@ function renderLogin(){
   if(!S.showLogin&&!(S.session&&!S.canWrite)){el.hidden=true;return}
   el.hidden=false;
   if(S.session&&!S.canWrite){el.innerHTML=`<div>Du er logget ind som <b>${esc(S.session.user.email)}</b>, men den mail har ikke adgang til at taste resultater. Spørg Lars.</div><div class="row"><button data-act="logout">Log ud</button></div>`;return}
-  if(S.loginSent){el.innerHTML=`<h3>Tjek din mail</h3><div>Vi har sendt en kode til <b>${esc(S.loginSent)}</b>. Skriv koden her. Kommer der ikke noget, så kig i spam.</div>
-    <form class="row" id="f-code"><input id="login-code" inputmode="numeric" autocomplete="one-time-code" placeholder="Kode fra mailen" maxlength="10" style="flex:1 1 160px;letter-spacing:.2em"><button class="primary" type="submit" ${S.busy?"disabled":""}>Log ind</button><button type="button" data-act="login-close">Annullér</button></form>
-    <div class="small muted">Er du i Safari, kan du også bare trykke på linket i mailen.</div>`;return}
+  if(S.loginSent){el.innerHTML=`<h3>Tjek din mail</h3><div>Vi har sendt et login-link til <b>${esc(S.loginSent)}</b>. Linket åbner i Safari eller din browser. Gå derefter til <b>Regler og spillere</b> og vælg en adgangskode. Så kan du logge ind her i appen med mail og adgangskode.</div><div class="row"><button data-act="login-close">Luk</button></div>`;return}
   el.innerHTML=`<h3>Log ind for at taste resultater</h3><div class="small muted">Kun for formanden og Lars. Alle andre kan se det hele uden login.</div>
-    <form class="row" id="f-login"><input type="email" id="login-email" placeholder="din@mail.dk" autocomplete="email" required style="flex:1 1 220px"><button class="primary" type="submit">Send kode</button><button type="button" data-act="login-close">Annullér</button></form>`;
+    <form class="row" id="f-login" style="flex-direction:column;align-items:stretch">
+      <input type="email" id="login-email" placeholder="din@mail.dk" autocomplete="email" required>
+      <input type="password" id="login-pw" placeholder="Adgangskode" autocomplete="current-password">
+      <div class="row"><button class="primary" type="submit" ${S.busy?"disabled":""}>Log ind</button><button type="button" data-act="login-close">Annullér</button></div></form>
+    <div class="small muted">Ingen adgangskode endnu? Skriv din mail ovenfor og <button type="button" data-act="send-link" style="padding:4px 8px;font-size:13px">få et login-link</button></div>`;
 }
-async function verifyCode(){
-  const token=$("#login-code").value.replace(/\D/g,"");if(token.length<6){flash("Skriv hele koden fra mailen.",true);return}
+async function pwLogin(){
+  const email=$("#login-email").value.trim(),password=$("#login-pw").value;
+  if(!email||!password){flash("Skriv både mail og adgangskode.",true);return}
   S.busy=true;renderLogin();
-  const {error}=await S.sb.auth.verifyOtp({email:S.loginSent,token,type:"email"});
+  const {error}=await S.sb.auth.signInWithPassword({email,password});
   S.busy=false;
-  if(error){flash("Koden passer ikke eller er udløbet. Prøv igen, eller send en ny kode.",true);renderLogin();return}
+  if(error){flash("Mail eller adgangskode passer ikke. Har du ingen adgangskode, så få et login-link.",true);renderLogin();return}
   flash("Du er logget ind.");
 }
+async function setPassword(){
+  const a=$("#pw1").value,b=$("#pw2").value;
+  if(a.length<8){flash("Adgangskoden skal være mindst 8 tegn.",true);return}
+  if(a!==b){flash("De to adgangskoder er ikke ens.",true);return}
+  const {error}=await S.sb.auth.updateUser({password:a});
+  if(error){flash("Adgangskoden kunne ikke gemmes: "+error.message,true);return}
+  $("#pw1").value="";$("#pw2").value="";flash("Adgangskoden er gemt. Nu kan du logge ind i appen med mail og adgangskode.");
+}
 async function sendLogin(){
-  const email=$("#login-email").value.trim();if(!email)return;
+  const email=$("#login-email").value.trim();if(!email){flash("Skriv din mail først.",true);return}
   const {error}=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  if(error){flash("Koden kunne ikke sendes: "+error.message,true);return}
+  if(error){flash("Login-linket kunne ikke sendes: "+error.message,true);return}
   S.loginSent=email;renderLogin();
 }
 async function checkAdmin(){
@@ -408,6 +424,7 @@ document.addEventListener("click",e=>{
     const active=$("#pa-"+CSS.escape(id)).checked,guest=$("#pg-"+CSS.escape(id)).checked;
     write(async()=>{const r=await S.sb.from("players").update({name,active,guest}).eq("id",id);if(r.error)throw r.error;flash("Spilleren er gemt.")})}
   if(a==="logout")S.sb.auth.signOut();
+  if(a==="send-link")sendLogin();
   if(a==="admin-del"){S.confirmAdmin=b.dataset.email;renderRules()}
   if(a==="admin-del-no"){S.confirmAdmin=null;renderRules()}
   if(a==="admin-del-yes"){const em=b.dataset.email;
@@ -426,8 +443,8 @@ document.addEventListener("input",e=>{if(e.target.closest("#f-settings"))S.setti
 document.addEventListener("submit",e=>{
   e.preventDefault();
   if(e.target.id==="f-settings")saveSettings();
-  if(e.target.id==="f-login")sendLogin();
-  if(e.target.id==="f-code")verifyCode();
+  if(e.target.id==="f-login")pwLogin();
+  if(e.target.id==="f-pw")setPassword();
   if(e.target.id==="f-admin"){const em=$("#new-admin").value.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash("Skriv en gyldig mailadresse.",true);return}
     write(async()=>{const r=await S.sb.from("admins").insert({email:em});if(r.error&&r.error.code!=="23505")throw r.error;flash(em+" kan nu taste resultater.")})}
   if(e.target.id==="f-player"){const name=$("#new-player").value.trim();if(!name)return;const guest=$("#new-guest").checked;
