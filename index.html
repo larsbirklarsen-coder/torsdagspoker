@@ -322,14 +322,24 @@ function renderLogin(){
   if(!S.showLogin&&!(S.session&&!S.canWrite)){el.hidden=true;return}
   el.hidden=false;
   if(S.session&&!S.canWrite){el.innerHTML=`<div>Du er logget ind som <b>${esc(S.session.user.email)}</b>, men den mail har ikke adgang til at taste resultater. Spørg Lars.</div><div class="row"><button data-act="logout">Log ud</button></div>`;return}
-  if(S.loginSent){el.innerHTML=`<h3>Tjek din mail</h3><div>Vi har sendt et login-link til <b>${esc(S.loginSent)}</b>. Åbn det på denne telefon. Kommer der ikke noget, så kig i spam.</div><div class="row"><button data-act="login-close">Luk</button></div>`;return}
+  if(S.loginSent){el.innerHTML=`<h3>Tjek din mail</h3><div>Vi har sendt en kode til <b>${esc(S.loginSent)}</b>. Skriv koden her. Kommer der ikke noget, så kig i spam.</div>
+    <form class="row" id="f-code"><input id="login-code" inputmode="numeric" autocomplete="one-time-code" placeholder="Kode fra mailen" maxlength="10" style="flex:1 1 160px;letter-spacing:.2em"><button class="primary" type="submit" ${S.busy?"disabled":""}>Log ind</button><button type="button" data-act="login-close">Annullér</button></form>
+    <div class="small muted">Er du i Safari, kan du også bare trykke på linket i mailen.</div>`;return}
   el.innerHTML=`<h3>Log ind for at taste resultater</h3><div class="small muted">Kun for formanden og Lars. Alle andre kan se det hele uden login.</div>
-    <form class="row" id="f-login"><input type="email" id="login-email" placeholder="din@mail.dk" autocomplete="email" required style="flex:1 1 220px"><button class="primary" type="submit">Send login-link</button><button type="button" data-act="login-close">Annullér</button></form>`;
+    <form class="row" id="f-login"><input type="email" id="login-email" placeholder="din@mail.dk" autocomplete="email" required style="flex:1 1 220px"><button class="primary" type="submit">Send kode</button><button type="button" data-act="login-close">Annullér</button></form>`;
+}
+async function verifyCode(){
+  const token=$("#login-code").value.replace(/\D/g,"");if(token.length<6){flash("Skriv hele koden fra mailen.",true);return}
+  S.busy=true;renderLogin();
+  const {error}=await S.sb.auth.verifyOtp({email:S.loginSent,token,type:"email"});
+  S.busy=false;
+  if(error){flash("Koden passer ikke eller er udløbet. Prøv igen, eller send en ny kode.",true);renderLogin();return}
+  flash("Du er logget ind.");
 }
 async function sendLogin(){
   const email=$("#login-email").value.trim();if(!email)return;
   const {error}=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  if(error){flash("Login-linket kunne ikke sendes: "+error.message,true);return}
+  if(error){flash("Koden kunne ikke sendes: "+error.message,true);return}
   S.loginSent=email;renderLogin();
 }
 async function checkAdmin(){
@@ -417,6 +427,7 @@ document.addEventListener("submit",e=>{
   e.preventDefault();
   if(e.target.id==="f-settings")saveSettings();
   if(e.target.id==="f-login")sendLogin();
+  if(e.target.id==="f-code")verifyCode();
   if(e.target.id==="f-admin"){const em=$("#new-admin").value.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash("Skriv en gyldig mailadresse.",true);return}
     write(async()=>{const r=await S.sb.from("admins").insert({email:em});if(r.error&&r.error.code!=="23505")throw r.error;flash(em+" kan nu taste resultater.")})}
   if(e.target.id==="f-player"){const name=$("#new-player").value.trim();if(!name)return;const guest=$("#new-guest").checked;
