@@ -118,6 +118,7 @@ button:disabled{opacity:.55;cursor:default}
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
+const APP_VERSION="2026-11-19.4";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]}};
 const S={sb:null,session:null,admins:[],confirmAdmin:null,settings:null,players:[],evenings:[],canWrite:false,loaded:false,
@@ -404,7 +405,10 @@ function render(){
   renderLogin();renderMerit();renderEvenings();renderEditor();renderRules();
 }
 window.addEventListener("hashchange",()=>{S.confirmDel=null;render();window.scrollTo(0,0)});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.sb&&!S.busy)load()});
+/* Ny version? Hent den med det samme (telefonen gemmer ellers den gamle side). */
+async function checkVersion(){try{const r=await fetch("version.txt?t="+Date.now(),{cache:"no-store"});const v=(await r.text()).trim();if(r.ok&&v&&v!==APP_VERSION&&!location.search.includes("v="+encodeURIComponent(v))&&!S.busy&&!S.draft)location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}catch{}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.sb&&!S.busy){checkVersion();load()}});
+checkVersion();
 
 $("#login-btn").addEventListener("click",async()=>{
   if(S.session){await S.sb.auth.signOut();return}

@@ -21,3 +21,6 @@ Supabase → Table Editor → `admins` → Insert row → mailadressen.
 - En gemt aften beholder de præmier, den blev spillet med.
 - Order of merit = sum af (gevinst − indskud) pr. sæson. Gæster vises, men får ingen placering.
 - Aftenerne fra `Pokerregnskab 2026.xls` (uge 1–45) har kun netto pr. spiller og kan slettes, men ikke rettes.
+
+## Ny version
+Hæv `APP_VERSION` i `index.html` og indholdet af `version.txt` til samme værdi. Så henter telefonerne den nye side, næste gang appen åbnes.
