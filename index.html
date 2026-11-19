@@ -136,7 +136,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-19.5";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-19.6";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -433,13 +433,27 @@ const fmtT=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+"
 const lvlText=L=>!L?"–":L.pause?`Pause ${L.minutes} min`:`${nf.format(L.sb)} / ${nf.format(L.bb)}${L.ante?` · ante ${nf.format(L.ante)}`:""}`;
 function saveClock(){try{localStorage.setItem(CK,JSON.stringify(C))}catch{}}
 function remaining(){return C.running?C.endAt-Date.now():(C.remaining??lvlMs(C.level))}
-function beep(freq,ms,when=0){
-  if(!audio)return;const t=audio.currentTime+when,o=audio.createOscillator(),g=audio.createGain();
-  o.type="square";o.frequency.value=freq;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.35,t+0.01);
+/* Lyde laves i telefonen (ingen lydfiler). Valg og lydstyrke gemmes pr. telefon. */
+const SND=(()=>{try{return JSON.parse(localStorage.getItem("tp-sound"))||{}}catch{return{}}})();
+SND.kind=SND.kind||"klokke";SND.vol=SND.vol??0.8;
+function tone(freq,ms,when=0,type="sine",vol=0.35){
+  if(!audio)return;const t=audio.currentTime+when,o=audio.createOscillator(),g=audio.createGain(),v=Math.max(0.0002,vol*SND.vol);
+  o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v,t+0.01);
   g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);o.connect(g).connect(audio.destination);o.start(t);o.stop(t+ms/1000+0.05);
 }
-function alarmLevel(){[0,0.45,0.9].forEach(w=>beep(880,350,w));beep(1320,700,1.35);try{navigator.vibrate&&navigator.vibrate([400,150,400,150,800])}catch{}}
-function alarmWarn(){beep(660,180);beep(660,180,0.3);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch{}}
+const beep=(f,ms,w=0)=>tone(f,ms,w,"square",0.3);
+const bell=(f,w=0,len=1800)=>{tone(f,len,w,"sine",0.5);tone(f*2.76,len*0.5,w,"sine",0.15);tone(f*5.4,len*0.25,w,"sine",0.07)};
+const SOUNDS={
+  klokke:{name:"Klokke",level:()=>{bell(880,0);bell(880,0.7);bell(1175,1.4,2600)},warn:()=>bell(660,0,1200)},
+  bip:{name:"Bip",level:()=>{[0,0.45,0.9].forEach(w=>beep(880,350,w));beep(1320,700,1.35)},warn:()=>{beep(660,180);beep(660,180,0.3)}},
+  gong:{name:"Gong",level:()=>{tone(98,4200,0,"sine",0.7);tone(196,3000,0,"sine",0.35);tone(293,1800,0,"triangle",0.15);tone(98,4200,1.6,"sine",0.6)},warn:()=>tone(147,2200,0,"sine",0.5)},
+  fanfare:{name:"Fanfare",level:()=>{[[523,0],[659,0.18],[784,0.36],[1047,0.6]].forEach(([f,w],i)=>tone(f,i===3?1100:220,w,"triangle",0.45))},warn:()=>{tone(784,160,0,"triangle",0.4);tone(1047,260,0.2,"triangle",0.4)}},
+  alarm:{name:"Alarmklokke",level:()=>{for(let i=0;i<16;i++)tone(i%2?988:1319,90,i*0.1,"square",0.25)},warn:()=>{for(let i=0;i<6;i++)tone(i%2?988:1319,80,i*0.1,"square",0.2)}}
+};
+const snd=()=>SOUNDS[SND.kind]||SOUNDS.klokke;
+function saveSnd(){try{localStorage.setItem("tp-sound",JSON.stringify(SND))}catch{}}
+function alarmLevel(){snd().level();try{navigator.vibrate&&navigator.vibrate([400,150,400,150,800])}catch{}}
+function alarmWarn(){snd().warn();try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch{}}
 async function keepAwake(){try{if(C.running&&"wakeLock" in navigator&&!wake){wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>{wake=null})}}catch{}}
 function dropAwake(){try{wake&&wake.release()}catch{}wake=null}
 function unlockAudio(){try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();audio.resume&&audio.resume();beep(1,10)}catch{}}
@@ -477,6 +491,12 @@ function renderClock(){
       <div class="row ctl"><button data-act="ck-minus">− 1 min</button><button data-act="ck-plus">+ 1 min</button><button data-act="ck-reset" id="ck-reset">Nulstil</button></div>
       <div class="small muted" id="ck-note"></div>
     </div>
+    <div class="card"><h3>Lyd</h3>
+      <div class="row"><label for="ck-sound" style="flex:1 1 150px">Lyd ved niveauskift<select id="ck-sound">${Object.entries(SOUNDS).map(([k,s])=>`<option value="${k}" ${k===SND.kind?"selected":""}>${s.name}</option>`).join("")}</select></label>
+        <label for="ck-vol" style="flex:1 1 150px">Lydstyrke<input type="range" id="ck-vol" min="0.1" max="1" step="0.1" value="${SND.vol}" style="padding:0"></label></div>
+      <div class="row"><button data-act="ck-test">▶ Test niveauskift</button><button data-act="ck-testwarn">▶ Test 1 minut tilbage</button></div>
+      <div class="small muted">Valget gælder denne telefon. På iPhone skal lydkontakten på siden stå på lyd.</div>
+    </div>
     <div class="card"><div class="ev-head"><h3>Blindstruktur</h3><span class="pill">${b.minutes} min pr. niveau</span></div>
       ${b.stack?`<div class="small">Startstack: <b>${esc(b.stack)}</b>${stackTotal(b.stack)?` = ${nf.format(stackTotal(b.stack))} i chips`:""}</div>`:""}
       <div class="tbl"><table><thead><tr><th>Niveau</th><th>Blinds</th><th class="num">Starter efter</th></tr></thead><tbody>
@@ -508,6 +528,8 @@ function paintClock(){
 }
 function clockAct(a){
   if(a!=="ck-reset")confirmReset=false;
+  if(a==="ck-test"){unlockAudio();alarmLevel();return}
+  if(a==="ck-testwarn"){unlockAudio();alarmWarn();return}
   if(a==="ck-go"){
     unlockAudio();
     if(C.running){C.remaining=C.endAt-Date.now();C.running=false;dropAwake()}
@@ -582,6 +604,8 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="season"){S.season=+t.value;render()}
+  if(t.id==="ck-sound"){SND.kind=t.value;saveSnd();unlockAudio();alarmLevel()}
+  if(t.id==="ck-vol"){SND.vol=+t.value;saveSnd();unlockAudio();alarmWarn()}
   if(t.id==="ev-date"){S.draft.date=t.value;renderEditor()}
   if(t.id==="ev-host")S.draft.host=t.value;
   if(t.dataset.player){const d=S.draft;d.players=t.checked?[...d.players,t.dataset.player]:d.players.filter(x=>x!==t.dataset.player);renderEditor()}
