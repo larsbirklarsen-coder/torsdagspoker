@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Torsdagspoker</title>
+<meta name="theme-color" content="#0f4d34">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Torsdagspoker">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: grøn filt-bånd øverst med titel og faner, derunder én smal kolonne med kort og tabeller. */
+:root{
+  --bg:#f2f5f1; --surface:#ffffff; --ink:#16201b; --muted:#5b6a62; --line:#d6ddd7;
+  --band:#0f4d34; --band-ink:#f4f8f5; --band-muted:#a9c9b8;
+  --accent:#0f6a45; --accent-ink:#ffffff; --gain:#12784a; --loss:#b3261e; --gold:#a8760c; --warn-bg:#fdf3dc; --warn-ink:#7a5408;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0c1310; --surface:#141e19; --ink:#e5ede8; --muted:#92a399; --line:#25332b;
+  --band:#0b3324; --band-ink:#eef5f0; --band-muted:#8fb5a1;
+  --accent:#43b883; --accent-ink:#06150e; --gain:#4cc28b; --loss:#f07a70; --gold:#e0b04a; --warn-bg:#33270d; --warn-ink:#f1cf7f;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+[hidden]{display:none!important}
+a{color:var(--accent)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.band{background:var(--band);color:var(--band-ink);padding-top:env(safe-area-inset-top,0px)}
+header.band .wrap{padding-block:22px 0;display:flex;flex-direction:column;gap:4px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h1{font-family:var(--display);font-weight:700;font-size:40px;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+.sub{color:var(--band-muted);font-size:13px}
+.login-link{background:none;border:1px solid var(--band-muted);color:var(--band-ink);font-size:13px;padding:6px 10px}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:14px}
+nav.tabs a{color:var(--band-muted);text-decoration:none;padding:10px 12px;font-weight:600;font-size:14px;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--band-ink);border-bottom-color:var(--gold)}
+nav.tabs a:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+main .wrap{padding-block:20px calc(48px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px}
+h2{font-family:var(--display);font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.03em;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.spread{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.gain{color:var(--gain);font-weight:600}.loss{color:var(--loss);font-weight:600}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th.num{text-align:right}
+td{padding:9px 8px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+.rank{font-family:var(--display);font-size:20px;font-weight:700;width:34px;color:var(--muted)}
+tr.lead .rank{color:var(--gold)}
+.leader{display:flex;gap:14px;align-items:center}
+.chip{width:46px;height:46px;border-radius:50%;flex:none;background:var(--gold);border:5px dashed var(--surface);box-shadow:0 0 0 2px var(--gold)}
+.big{font-family:var(--display);font-size:30px;font-weight:700;line-height:1}
+.pill{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:10px 12px;font-size:14px}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=number]{width:110px}
+button{font:inherit;font-weight:600;border-radius:7px;padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--loss)}
+button:disabled{opacity:.55;cursor:default}
+.players{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.games{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.game{border:1px dashed var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ev-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.empty{text-align:center;padding:28px 16px;color:var(--muted)}
+[data-tab]{display:none;flex-direction:column;gap:14px}[data-tab].on{display:flex}
+@media (prefers-reduced-motion:no-preference){button{transition:filter .15s}button:hover:not(:disabled){filter:brightness(1.06)}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="top">
+      <h1>Torsdagspoker</h1>
+      <button class="login-link" id="login-btn" type="button">Log ind</button>
+    </div>
+    <div class="sub" id="sub">Sit &amp; go hver 14. dag</div>
+    <nav class="tabs" id="tabs">
+      <a href="#merit" data-link="merit">Order of Merit</a>
+      <a href="#aftener" data-link="aftener">Aftener</a>
+      <a href="#ny" data-link="ny" id="tab-ny">Ny aften</a>
+      <a href="#regler" data-link="regler">Regler og spillere</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div id="status" class="notice" hidden></div>
+    <section id="login" class="card" hidden></section>
+    <section data-tab="merit" id="sec-merit"></section>
+    <section data-tab="aftener" id="sec-aftener"></section>
+    <section data-tab="ny" id="sec-ny"></section>
+    <section data-tab="regler" id="sec-regler"></section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
+const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
+const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
+
+const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]}};
+const S={sb:null,session:null,admins:[],confirmAdmin:null,settings:null,players:[],evenings:[],canWrite:false,loaded:false,
+  season:null,draft:null,editingId:null,confirmDel:null,settingsDirty:false,busy:false,showLogin:false,loginSent:false};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=new Intl.NumberFormat("da-DK");
+const kr=n=>nf.format(n)+" kr.";
+const net=n=>n===0?"0 kr.":(n>0?"+":"−")+nf.format(Math.abs(n))+" kr.";
+const netCls=n=>n>0?"gain":n<0?"loss":"";
+const fmtDate=d=>{try{return new Date(d+"T12:00").toLocaleDateString("da-DK",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}catch{return d}};
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const cfg=()=>Object.assign({},DEFAULTS,S.settings||{});
+const pname=id=>(S.players.find(p=>p.id===id)||{}).name||"Ukendt";
+const writable=()=>S.canWrite===true;
+const isGuest=id=>!!(S.players.find(p=>p.id===id)||{}).guest;
+const label=p=>esc(p.name)+(p.guest?" (gæst)":"");
+const newId=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+
+function evResult(ev){
+  const paid=(ev.buyIn||0)*(ev.gameCount||(ev.games||[]).length);
+  if(ev.results)return Object.entries(ev.results).map(([id,n])=>({id,paid,won:n+paid,wins:0,net:n})).sort((a,b)=>b.net-a.net);
+  const m={};(ev.players||[]).forEach(p=>m[p]={id:p,paid,won:0,wins:0});
+  (ev.games||[]).forEach(g=>g.forEach((p,i)=>{if(m[p]){m[p].won+=(ev.prizes||[])[i]||0;if(i===0)m[p].wins++}}));
+  return Object.values(m).map(r=>({...r,net:r.won-r.paid})).sort((a,b)=>b.net-a.net||b.wins-a.wins);
+}
+function seasons(){const y=new Set(S.evenings.map(e=>e.season));y.add(new Date().getFullYear());return [...y].sort((a,b)=>b-a)}
+function merit(season){
+  const t={};
+  S.evenings.filter(e=>e.season===season).forEach(ev=>evResult(ev).forEach(r=>{
+    const a=t[r.id]||(t[r.id]={id:r.id,n:0,paid:0,won:0,wins:0,net:0});
+    a.n++;a.paid+=r.paid;a.won+=r.won;a.wins+=r.wins;a.net+=r.net;}));
+  return Object.values(t).sort((a,b)=>b.net-a.net||b.wins-a.wins);
+}
+
+/* ---------- Order of Merit ---------- */
+function renderMerit(){
+  const el=$("#sec-merit");
+  if(!S.loaded){el.innerHTML=`<div class="card empty">Henter resultater …</div>`;return}
+  const ss=seasons(); if(!ss.includes(S.season))S.season=ss[0];
+  const rows=merit(S.season);
+  const evs=S.evenings.filter(e=>e.season===S.season);
+  const last=evs[0];
+  let h=`<div class="row spread"><h2>Order of Merit ${S.season}</h2>
+    <label style="flex-direction:row;align-items:center;gap:8px">Sæson
+    <select id="season">${ss.map(y=>`<option ${y===S.season?"selected":""}>${y}</option>`).join("")}</select></label></div>`;
+  if(!rows.length){el.innerHTML=h+`<div class="card empty">Ingen aftener i ${S.season} endnu.</div>`;return}
+  const lead=rows.find(r=>!isGuest(r.id));
+  if(lead)h+=`<div class="card"><div class="leader"><div class="chip" aria-hidden="true"></div><div>
+    <div class="small muted">Fører efter ${evs.length} ${evs.length===1?"aften":"aftener"}</div>
+    <div class="big">${esc(pname(lead.id))}</div>
+    <div class="${netCls(lead.net)}">${net(lead.net)}</div></div></div></div>`;
+  let rank=0;
+  h+=`<div class="card"><div class="tbl"><table><thead><tr><th></th><th>Spiller</th><th class="num">Aftener</th><th class="num">Indskud</th><th class="num">Gevinst</th><th class="num">Fortjeneste</th><th class="num">Gns.</th></tr></thead><tbody>
+  ${rows.map(r=>{const g=isGuest(r.id);if(!g)rank++;
+    return `<tr class="${!g&&r===lead?"lead":""}"><td class="rank">${g?"–":rank}</td><td>${esc(pname(r.id))}${g?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num muted">${kr(r.paid)}</td><td class="num">${kr(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td><td class="num muted">${(r.net/r.n).toLocaleString("da-DK",{maximumFractionDigits:2,minimumFractionDigits:2})}</td></tr>`}).join("")}
+  </tbody></table></div><div class="small muted">Fortjeneste = gevinst minus indskud. Gns. = fortjeneste pr. aften spillet. Gæster vises, men får ingen placering og kan ikke vinde året.</div></div>`;
+  if(last) h+=`<div class="card"><div class="ev-head"><h3>Seneste aften · ${esc(fmtDate(last.date))}</h3><a href="#aftener" class="small">Alle aftener</a></div>${settleTable(last)}</div>`;
+  el.innerHTML=h;
+}
+function settleTable(ev){
+  return `<div class="tbl"><table><thead><tr><th>Spiller</th><th class="num">Betalt</th><th class="num">Får udbetalt</th><th class="num">Netto</th></tr></thead><tbody>
+  ${evResult(ev).map(r=>`<tr><td>${esc(pname(r.id))}</td><td class="num muted">${kr(r.paid)}</td><td class="num">${kr(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ---------- Aftener ---------- */
+function renderEvenings(){
+  const el=$("#sec-aftener");
+  if(!S.loaded){el.innerHTML=`<div class="card empty">Henter aftener …</div>`;return}
+  const evs=S.evenings.filter(e=>e.season===S.season);
+  let h=`<div class="row spread"><h2>Aftener ${S.season}</h2>${writable()?`<button class="primary" data-act="new">Ny aften</button>`:""}</div>`;
+  if(!evs.length){el.innerHTML=h+`<div class="card empty">Ingen aftener i ${S.season} endnu.</div>`;return}
+  h+=evs.map(ev=>{
+    const games=(ev.games||[]).map((g,i)=>`<div class="small"><b>Spil ${i+1}:</b> ${g.map((p,j)=>`${j+1}. ${esc(pname(p))}`).join(" · ")}</div>`).join("");
+    const pot=(ev.players||[]).length*(ev.buyIn||0);
+    const del=S.confirmDel===ev.id
+      ?`<span class="small">Slet aftenen permanent?</span><button class="danger" data-act="del-yes" data-id="${esc(ev.id)}">Ja, slet</button><button data-act="del-no">Fortryd</button>`
+      :`${ev.results?"":`<button data-act="edit" data-id="${esc(ev.id)}">Ret</button>`}<button class="danger" data-act="del" data-id="${esc(ev.id)}">Slet</button>`;
+    return `<article class="card"><div class="ev-head"><h3>${esc(fmtDate(ev.date))}${ev.host?` · hos ${esc(pname(ev.host))}`:""}</h3><span class="pill">${(ev.players||[]).length} spillere · pulje ${kr(pot)} pr. spil</span>${ev.results?`<span class="pill">Fra regnearket</span>`:""}</div>
+      ${games}${settleTable(ev)}${writable()?`<div class="row">${del}</div>`:""}</article>`;
+  }).join("");
+  el.innerHTML=h;
+}
+
+/* ---------- Ny / ret aften ---------- */
+function newDraft(){const c=cfg();return{date:today(),host:"",players:[],games:Array.from({length:c.games},()=>[])}}
+function syncDraft(){
+  const c=cfg(),d=S.draft,n=d.players.length,pr=c.prizes[String(n)]||[];
+  if(!S.editingId)while(d.games.length<c.games)d.games.push([]);
+  d.games=d.games.map(g=>Array.from({length:pr.length},(_,i)=>d.players.includes(g[i])?g[i]:""));
+}
+function draftIssues(){
+  const c=cfg(),d=S.draft,n=d.players.length,out=[];
+  if(!d.date)out.push("Vælg en dato.");
+  if(n<c.minPlayers)out.push(`Der skal være mindst ${c.minPlayers} spillere (valgt: ${n}).`);
+  else if(!c.prizes[String(n)])out.push(`Der er ingen præmier for ${n} spillere. Tilføj dem under Regler og spillere.`);
+  d.games.forEach((g,i)=>{if(g.some(x=>!x))out.push(`Spil ${i+1}: vælg alle placeringer.`);
+    else if(new Set(g).size!==g.length)out.push(`Spil ${i+1}: samme spiller står på flere pladser.`)});
+  return out;
+}
+function renderEditor(){
+  const el=$("#sec-ny");
+  if(!writable()){el.innerHTML=`<div class="card empty">Kun formanden kan taste aftener. Log ind øverst til højre, hvis det er dig.</div>`;return}
+  if(!S.loaded){el.innerHTML=`<div class="card empty">Henter spillere …</div>`;return}
+  if(!S.draft)S.draft=newDraft();
+  syncDraft();
+  const c=cfg(),d=S.draft,n=d.players.length,pr=c.prizes[String(n)]||[];
+  const ev=S.editingId?S.evenings.find(e=>e.id===S.editingId):null;
+  const buyIn=ev?ev.buyIn:c.buyIn, prizes=ev&&ev.players.length===n&&ev.prizes?ev.prizes:pr;
+  const shown=S.players.filter(p=>p.active!==false||d.players.includes(p.id));
+  let h=`<div class="row spread"><h2>${S.editingId?"Ret aften":"Ny aften"}</h2>${S.editingId?`<button data-act="cancel">Fortryd</button>`:""}</div>`;
+  if(!S.players.length){el.innerHTML=h+`<div class="card empty">Der er ingen spillere endnu. Opret dem under <a href="#regler">Regler og spillere</a>.</div>`;return}
+  h+=`<div class="card"><div class="row"><label for="ev-date">Dato<input type="date" id="ev-date" value="${esc(d.date)}"></label>
+    <label for="ev-host">Sted (vært)<select id="ev-host"><option value="">Ikke valgt</option>${S.players.filter(p=>!p.guest&&(p.active!==false||p.id===d.host)).map(p=>`<option value="${esc(p.id)}" ${p.id===d.host?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label></div>
+    <div><h3>Hvem spiller med?</h3><div class="small muted">Mindst ${c.minPlayers}. Hver betaler ${kr(buyIn)} pr. spil.</div></div>
+    <div class="players">${shown.map(p=>`<label class="check"><input type="checkbox" data-player="${esc(p.id)}" ${d.players.includes(p.id)?"checked":""}>${label(p)}</label>`).join("")}</div></div>`;
+  if(n>=c.minPlayers&&prizes.length){
+    const pot=n*buyIn,sum=prizes.reduce((a,b)=>a+b,0);
+    h+=`<div class="card"><div class="ev-head"><h3>Placeringer</h3><span class="pill">Pulje ${kr(pot)} pr. spil → ${prizes.map(kr).join(" / ")}</span></div>
+      ${sum!==pot?`<div class="notice">Præmierne (${kr(sum)}) passer ikke med puljen (${kr(pot)}). Ret dem under Regler og spillere.</div>`:""}
+      <div class="games">${d.games.map((g,gi)=>`<div class="game"><h3>Spil ${gi+1}</h3>${g.map((sel,pi)=>`<label for="g${gi}p${pi}">${pi+1}. plads · ${kr(prizes[pi])}
+        <select id="g${gi}p${pi}" data-game="${gi}" data-place="${pi}"><option value="">Vælg spiller</option>${d.players.map(id=>`<option value="${esc(id)}" ${id===sel?"selected":""}>${esc(pname(id))}</option>`).join("")}</select></label>`).join("")}</div>`).join("")}</div></div>`;
+    const preview={players:d.players,buyIn,prizes,games:d.games.map(g=>g.filter(Boolean))};
+    h+=`<div class="card"><h3>Afregning i aften</h3>${settleTable(preview)}</div>`;
+  }
+  const iss=draftIssues();
+  h+=`<div class="row">${iss.length?`<div class="small muted" style="flex:1 1 240px">${iss.map(esc).join("<br>")}</div>`:""}
+    <button class="primary" data-act="save" ${iss.length||S.busy?"disabled":""}>${S.editingId?"Gem ændringer":"Gem aften"}</button></div>`;
+  el.innerHTML=h;
+}
+async function saveDraft(){
+  const c=cfg(),d=S.draft,n=d.players.length;
+  const ev=S.editingId?S.evenings.find(e=>e.id===S.editingId):null;
+  const keep=ev&&ev.players.length===n&&ev.prizes;
+  const row={date:d.date,host:d.host||null,season:+d.date.slice(0,4),players:[...d.players],
+    buy_in:ev?ev.buyIn:c.buyIn,game_count:d.games.length,
+    prizes:keep?[...ev.prizes]:[...(c.prizes[String(n)]||[])],games:d.games.map(g=>[...g]),updated_at:new Date().toISOString()};
+  await write(async()=>{
+    const r=S.editingId?await S.sb.from("evenings").update(row).eq("id",S.editingId)
+                       :await S.sb.from("evenings").insert({id:newId(),...row});
+    if(r.error)throw r.error;
+    S.season=row.season;S.draft=null;S.editingId=null;flash("Aftenen er gemt.");location.hash="#merit";
+  });
+}
+
+/* ---------- Regler og spillere ---------- */
+function renderRules(){
+  const el=$("#sec-regler");
+  if(S.settingsDirty)return;
+  if(!S.loaded){el.innerHTML=`<div class="card empty">Henter regler …</div>`;return}
+  const c=cfg(),w=writable();
+  const counts=[];for(let n=c.minPlayers;n<=c.maxPlayers;n++)counts.push(n);
+  let h=`<h2>Regler og spillere</h2>`;
+  if(!w){
+    h+=`<div class="card"><div>${c.games} sit &amp; go pr. aften · ${kr(c.buyIn)} pr. spil (${kr(c.buyIn*c.games)} i alt) · mindst ${c.minPlayers} spillere</div>
+      <div class="tbl"><table><thead><tr><th>Spillere</th><th class="num">Pulje pr. spil</th><th>Præmier</th></tr></thead><tbody>
+      ${counts.map(n=>`<tr><td>${n}</td><td class="num">${kr(n*c.buyIn)}</td><td>${(c.prizes[String(n)]||[]).map(kr).join(" / ")||"–"}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h3>Spillere</h3><div>${S.players.filter(p=>p.active!==false).map(label).join(", ")||"Ingen endnu"}</div></div>`;
+    el.innerHTML=h;return;
+  }
+  h+=`<form class="card" id="f-settings"><h3>Spilleregler</h3><div class="row">
+    <label for="s-buyin">Indskud pr. spil (kr.)<input type="number" id="s-buyin" min="0" step="10" value="${c.buyIn}"></label>
+    <label for="s-games">Spil pr. aften<input type="number" id="s-games" min="1" max="6" value="${c.games}"></label>
+    <label for="s-min">Mindst antal spillere<input type="number" id="s-min" min="2" max="20" value="${c.minPlayers}"></label>
+    <label for="s-max">Højst antal spillere<input type="number" id="s-max" min="2" max="20" value="${c.maxPlayers}"></label></div>
+    <div><h3>Præmier pr. spil</h3><div class="small muted">Skriv beløbene for 1., 2., 3. plads osv., adskilt af komma. Tom linje = det antal spillere er ikke tilladt.</div></div>
+    ${counts.map(n=>{const p=c.prizes[String(n)]||[],sum=p.reduce((a,b)=>a+b,0),pot=n*c.buyIn;
+      return `<div class="row"><label for="pz-${n}" style="flex:1 1 220px">${n} spillere · pulje ${kr(pot)}<input id="pz-${n}" data-prize="${n}" value="${p.join(", ")}" placeholder="fx 450, 300" inputmode="numeric"></label>
+      <span class="small ${p.length&&sum!==pot?"loss":"muted"}">${p.length?(sum===pot?"Går op":`Summen er ${kr(sum)}`):""}</span></div>`}).join("")}
+    <div class="small muted">Ændringer gælder nye aftener. Gemte aftener beholder de præmier, de blev spillet med.</div>
+    <div class="row"><button class="primary" type="submit" ${S.busy?"disabled":""}>Gem regler</button></div></form>`;
+  h+=`<div class="card"><h3>Spillere</h3>
+    ${S.players.length?`<div class="tbl"><table><tbody>${S.players.map(p=>`<tr><td><input id="pn-${esc(p.id)}" value="${esc(p.name)}" aria-label="Navn" style="width:100%;min-width:110px"></td>
+      <td class="num"><label class="check" style="display:inline-flex"><input type="checkbox" id="pa-${esc(p.id)}" ${p.active!==false?"checked":""}>Aktiv</label></td>
+      <td class="num"><label class="check" style="display:inline-flex"><input type="checkbox" id="pg-${esc(p.id)}" ${p.guest?"checked":""}>Gæst</label></td>
+      <td class="num"><button data-act="save-player" data-id="${esc(p.id)}">Gem</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="muted">Ingen spillere endnu.</div>`}
+    <form class="row" id="f-player"><input id="new-player" placeholder="Navn på ny spiller" style="flex:1 1 200px" maxlength="40"><label class="check"><input type="checkbox" id="new-guest">Gæst</label><button type="submit">Tilføj spiller</button></form>
+    <div class="small muted">Gæster spiller med og afregnes som alle andre, men kan ikke vinde order of merit. Spillere slettes ikke, så historikken bevares. Fjern fluebenet ved Aktiv, hvis en spiller er stoppet.</div></div>`;
+  const me=(S.session&&S.session.user.email||"").toLowerCase();
+  h+=`<div class="card"><h3>Hvem kan taste resultater</h3>
+    <div class="tbl"><table><tbody>${S.admins.map(a=>`<tr><td>${esc(a)}${a.toLowerCase()===me?` <span class="pill">dig</span>`:""}</td>
+      <td class="num">${a.toLowerCase()===me?"":(S.confirmAdmin===a?`<button class="danger" data-act="admin-del-yes" data-email="${esc(a)}">Ja, fjern</button> <button data-act="admin-del-no">Fortryd</button>`:`<button class="danger" data-act="admin-del" data-email="${esc(a)}">Fjern</button>`)}</td></tr>`).join("")}</tbody></table></div>
+    <form class="row" id="f-admin"><input type="email" id="new-admin" placeholder="Mailadresse" style="flex:1 1 220px" autocomplete="off"><button type="submit">Giv adgang</button></form>
+    <div class="small muted">Personen logger ind med "Log ind" øverst og får et link på den mail. Alle andre kan se resultaterne uden login.</div></div>`;
+  el.innerHTML=h;
+}
+async function saveSettings(){
+  const num=id=>Math.max(0,parseInt($(id).value,10)||0);
+  const c={buyIn:num("#s-buyin"),games:Math.max(1,num("#s-games")),minPlayers:Math.max(2,num("#s-min")),maxPlayers:Math.max(2,num("#s-max")),prizes:{}};
+  if(c.maxPlayers<c.minPlayers)c.maxPlayers=c.minPlayers;
+  Object.assign(c.prizes,cfg().prizes);
+  document.querySelectorAll("[data-prize]").forEach(i=>{const v=i.value.split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(x=>x>0);
+    if(v.length)c.prizes[i.dataset.prize]=v;else delete c.prizes[i.dataset.prize]});
+  await write(async()=>{const r=await S.sb.from("config").upsert({id:"main",data:c});if(r.error)throw r.error;S.settingsDirty=false;flash("Reglerne er gemt.")});
+}
+
+/* ---------- Login ---------- */
+function renderLogin(){
+  const btn=$("#login-btn"),el=$("#login");
+  btn.textContent=S.session?"Log ud":"Log ind";
+  if(!S.showLogin&&!(S.session&&!S.canWrite)){el.hidden=true;return}
+  el.hidden=false;
+  if(S.session&&!S.canWrite){el.innerHTML=`<div>Du er logget ind som <b>${esc(S.session.user.email)}</b>, men den mail har ikke adgang til at taste resultater. Spørg Lars.</div><div class="row"><button data-act="logout">Log ud</button></div>`;return}
+  if(S.loginSent){el.innerHTML=`<h3>Tjek din mail</h3><div>Vi har sendt et login-link til <b>${esc(S.loginSent)}</b>. Åbn det på denne telefon. Kommer der ikke noget, så kig i spam.</div><div class="row"><button data-act="login-close">Luk</button></div>`;return}
+  el.innerHTML=`<h3>Log ind for at taste resultater</h3><div class="small muted">Kun for formanden og Lars. Alle andre kan se det hele uden login.</div>
+    <form class="row" id="f-login"><input type="email" id="login-email" placeholder="din@mail.dk" autocomplete="email" required style="flex:1 1 220px"><button class="primary" type="submit">Send login-link</button><button type="button" data-act="login-close">Annullér</button></form>`;
+}
+async function sendLogin(){
+  const email=$("#login-email").value.trim();if(!email)return;
+  const {error}=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  if(error){flash("Login-linket kunne ikke sendes: "+error.message,true);return}
+  S.loginSent=email;renderLogin();
+}
+async function checkAdmin(){
+  if(!S.session){S.canWrite=false;render();return}
+  const {data,error}=await S.sb.rpc("is_admin");
+  S.canWrite=!error&&data===true;
+  if(S.canWrite)await loadAdmins();
+  render();
+}
+
+async function loadAdmins(){
+  const r=await S.sb.from("admins").select("email").order("email");
+  S.admins=r.error?[]:r.data.map(x=>x.email);
+}
+
+/* ---------- data ---------- */
+async function load(){
+  const [c,p,e]=await Promise.all([
+    S.sb.from("config").select("data").eq("id","main").maybeSingle(),
+    S.sb.from("players").select("id,name,active,guest").order("name"),
+    S.sb.from("evenings").select("*").order("date",{ascending:false})]);
+  if(c.error||p.error||e.error){flash("Resultaterne kunne ikke hentes. Tjek forbindelsen og prøv igen.",true);return}
+  S.settings=c.data?c.data.data:null;S.players=p.data;
+  S.evenings=e.data.map(r=>({id:r.id,date:r.date,host:r.host,season:r.season,players:r.players||[],buyIn:r.buy_in,
+    gameCount:r.game_count,prizes:r.prizes,games:r.games,results:r.results}));
+  S.loaded=true;render();
+}
+let flashT;
+function flash(msg,warn){const s=$("#status");s.textContent=msg;s.hidden=false;clearTimeout(flashT);if(!warn)flashT=setTimeout(()=>s.hidden=true,3500)}
+async function write(fn){
+  if(S.busy)return;S.busy=true;render();
+  try{await fn();await load();if(S.canWrite)await loadAdmins()}catch(e){
+    flash(/row-level security|permission|JWT/i.test(e&&e.message||"")?"Du har ikke adgang til at gemme. Log ind igen.":"Kunne ikke gemme. Prøv igen om lidt.",true);
+  }finally{S.busy=false;render()}
+}
+
+/* ---------- navigation ---------- */
+const TABS=["merit","aftener","ny","regler"];
+function tab(){const t=location.hash.slice(1);return TABS.includes(t)?t:"merit"}
+function render(){
+  const t=tab(),c=cfg();
+  $("#sub").textContent=`Sit & go · ${c.games} spil pr. aften · ${kr(c.buyIn)} pr. spil · mindst ${c.minPlayers} spillere`;
+  $("#tab-ny").hidden=!writable();
+  document.querySelectorAll("[data-link]").forEach(a=>{if(a.dataset.link===t)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  document.querySelectorAll("[data-tab]").forEach(s=>s.classList.toggle("on",s.dataset.tab===t));
+  renderLogin();renderMerit();renderEvenings();renderEditor();renderRules();
+}
+window.addEventListener("hashchange",()=>{S.confirmDel=null;render();window.scrollTo(0,0)});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.sb&&!S.busy)load()});
+
+$("#login-btn").addEventListener("click",async()=>{
+  if(S.session){await S.sb.auth.signOut();return}
+  S.showLogin=!S.showLogin;S.loginSent=false;renderLogin();
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+  if(a==="new"){S.editingId=null;S.draft=null;location.hash="#ny"}
+  if(a==="edit"){const ev=S.evenings.find(x=>x.id===id);S.editingId=id;
+    S.draft={date:ev.date,host:ev.host||"",players:[...ev.players],games:(ev.games||[]).map(g=>[...g])};location.hash="#ny";}
+  if(a==="cancel"){S.editingId=null;S.draft=null;location.hash="#aftener"}
+  if(a==="del"){S.confirmDel=id;renderEvenings()}
+  if(a==="del-no"){S.confirmDel=null;renderEvenings()}
+  if(a==="del-yes")write(async()=>{const r=await S.sb.from("evenings").delete().eq("id",id);if(r.error)throw r.error;S.confirmDel=null;flash("Aftenen er slettet.")});
+  if(a==="save")saveDraft();
+  if(a==="save-player"){const name=$("#pn-"+CSS.escape(id)).value.trim();if(!name)return;
+    const active=$("#pa-"+CSS.escape(id)).checked,guest=$("#pg-"+CSS.escape(id)).checked;
+    write(async()=>{const r=await S.sb.from("players").update({name,active,guest}).eq("id",id);if(r.error)throw r.error;flash("Spilleren er gemt.")})}
+  if(a==="logout")S.sb.auth.signOut();
+  if(a==="admin-del"){S.confirmAdmin=b.dataset.email;renderRules()}
+  if(a==="admin-del-no"){S.confirmAdmin=null;renderRules()}
+  if(a==="admin-del-yes"){const em=b.dataset.email;
+    write(async()=>{const r=await S.sb.from("admins").delete().eq("email",em);if(r.error)throw r.error;S.confirmAdmin=null;flash(em+" kan ikke længere taste.")})}
+  if(a==="login-close"){S.showLogin=false;S.loginSent=false;renderLogin()}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="season"){S.season=+t.value;render()}
+  if(t.id==="ev-date"){S.draft.date=t.value;renderEditor()}
+  if(t.id==="ev-host")S.draft.host=t.value;
+  if(t.dataset.player){const d=S.draft;d.players=t.checked?[...d.players,t.dataset.player]:d.players.filter(x=>x!==t.dataset.player);renderEditor()}
+  if(t.dataset.game!==undefined){S.draft.games[+t.dataset.game][+t.dataset.place]=t.value;renderEditor()}
+});
+document.addEventListener("input",e=>{if(e.target.closest("#f-settings"))S.settingsDirty=true});
+document.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="f-settings")saveSettings();
+  if(e.target.id==="f-login")sendLogin();
+  if(e.target.id==="f-admin"){const em=$("#new-admin").value.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){flash("Skriv en gyldig mailadresse.",true);return}
+    write(async()=>{const r=await S.sb.from("admins").insert({email:em});if(r.error&&r.error.code!=="23505")throw r.error;flash(em+" kan nu taste resultater.")})}
+  if(e.target.id==="f-player"){const name=$("#new-player").value.trim();if(!name)return;const guest=$("#new-guest").checked;
+    write(async()=>{const r=await S.sb.from("players").insert({id:newId(),name,active:true,guest});if(r.error)throw r.error;flash(name+" er tilføjet.")})}
+});
+
+/* ---------- opstart ---------- */
+render();
+if(!window.supabase){flash("Siden kunne ikke starte. Tjek forbindelsen og genindlæs.",true)}
+else{
+  S.sb=window.supabase.createClient(SB_URL,SB_KEY);
+  S.sb.auth.onAuthStateChange((_ev,session)=>{S.session=session;if(session){S.showLogin=false;S.loginSent=false}setTimeout(checkAdmin,0)});
+  load();
+}
+</script>
+</body>
+</html>
