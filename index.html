@@ -136,7 +136,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-19.7";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-19.8";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -453,7 +453,35 @@ function tone(freq,ms,when=0,type="sine",vol=0.35,toFreq){
 }
 const beep=(f,ms,w=0)=>tone(f,ms,w,"square",0.5);
 const bell=(f,w=0,len=1800)=>{tone(f,len,w,"sine",0.8);tone(f*2.76,len*0.5,w,"sine",0.3);tone(f*5.4,len*0.25,w,"sine",0.15)};
+/* Støj (til eksplosion og bifald) gennem et filter, der lukker ned over tid. */
+function noise(ms,when=0,vol=0.8,from=4000,to=200){
+  if(!audio)return;const t=audio.currentTime+when,d=ms/1000,len=Math.ceil(audio.sampleRate*d),b=audio.createBuffer(1,len,audio.sampleRate),ch=b.getChannelData(0);
+  for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+  const s=audio.createBufferSource(),f=audio.createBiquadFilter(),g=audio.createGain();s.buffer=b;f.type="lowpass";
+  f.frequency.setValueAtTime(from,t);f.frequency.exponentialRampToValueAtTime(to,t+d);
+  g.gain.setValueAtTime(vol*SND.vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);s.connect(f).connect(g).connect(out());s.start(t);s.stop(t+d+0.05);
+}
+/* Tone med vibrato (til den triste trombone). */
+function wobble(freq,ms,when,vol=0.8){
+  if(!audio)return;const t=audio.currentTime+when,d=ms/1000,o=audio.createOscillator(),l=audio.createOscillator(),lg=audio.createGain(),g=audio.createGain();
+  o.type="sawtooth";o.frequency.value=freq;l.frequency.value=6;lg.gain.value=freq*0.03;l.connect(lg).connect(o.frequency);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol*SND.vol,t+0.03);g.gain.setValueAtTime(vol*SND.vol,t+d-0.2);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  o.connect(g).connect(out());o.start(t);l.start(t);o.stop(t+d+0.05);l.stop(t+d+0.05);
+}
+const FUN={
+  trombone:{name:"🎺 Trist trombone",len:2.9,level:w=>{[[392,0,380],[370,0.42,380],[349,0.84,380]].forEach(([f,x,ms])=>wobble(f,ms,w+x,0.7));wobble(330,1600,w+1.28,0.8)}},
+  jackpot:{name:"🎰 Jackpot",len:2.8,level:w=>{const n=[523,659,784,1047];for(let r=0;r<4;r++)n.forEach((f,i)=>tone(f*(1+r*0.12),90,w+r*0.4+i*0.09,"square",0.6));
+    for(let i=0;i<10;i++){tone(1568,70,w+1.7+i*0.11,"square",0.5);tone(2093,90,w+1.74+i*0.11,"square",0.45)}}},
+  fløjte:{name:"🪈 Slide-fløjte",len:2.3,level:w=>{tone(500,700,w,"sine",0.9,2200);tone(2200,500,w+0.75,"sine",0.9,600);tone(600,700,w+1.3,"sine",0.9,2600)}},
+  laser:{name:"🔫 Laserkamp",len:2.2,level:w=>{for(let i=0;i<9;i++)tone(2400-i*60,170,w+i*0.24,"sawtooth",0.75,180)}},
+  buzzer:{name:"❌ Forkert svar",len:2.1,level:w=>{for(let i=0;i<2;i++){tone(140,700,w+i*0.9,"square",0.9);tone(147,700,w+i*0.9,"sawtooth",0.7)}}},
+  bombe:{name:"💣 Bombe",len:3.4,level:w=>{tone(1800,1400,w,"sine",0.5,300);noise(1800,w+1.4,1,5000,80);tone(60,1600,w+1.4,"sine",0.9,30)}},
+  bifald:{name:"👏 Bifald og jubel",len:3.2,level:w=>{for(let i=0;i<26;i++)noise(60,w+i*0.11+Math.random()*0.05,0.9,6000,1500);tone(880,300,w+0.2,"triangle",0.5,1320);tone(1320,500,w+2.5,"triangle",0.5,1760)}},
+  hane:{name:"🐓 Hanegal",len:2.2,level:w=>{tone(700,180,w,"sawtooth",0.8,1100);tone(1100,220,w+0.2,"sawtooth",0.8,1300);tone(1300,900,w+0.45,"sawtooth",0.85,900);tone(900,400,w+1.4,"sawtooth",0.7,600)}}
+};
 const SOUNDS={
+  sjov:{name:"🎲 Tilfældig sjov lyd",len:3,level:w=>FUN.jackpot.level(w),warn:()=>{tone(800,150,0,"square",0.7,1600);tone(1600,150,0.2,"square",0.7,800)}},
+  ...Object.fromEntries(Object.entries(FUN).map(([k,v])=>[k,{...v,warn:()=>v.level(0)}])),
   sirene:{name:"🚨 Sirene (kraftig)",len:3.6,level:w=>{for(let i=0;i<3;i++){tone(700,600,w+i*1.2,"sawtooth",0.9,1800);tone(1800,600,w+i*1.2+0.6,"sawtooth",0.9,700);tone(1400,1200,w+i*1.2,"square",0.4,2600)}},
     warn:()=>{tone(900,500,0,"sawtooth",0.8,1800);tone(1800,500,0.5,"sawtooth",0.8,900)}},
   brand:{name:"🔥 Brandalarm (kraftig)",len:3.2,level:w=>{for(let s=0;s<2;s++)for(let i=0;i<3;i++){const t=w+s*1.7+i*0.5;tone(3100,380,t,"square",0.9);tone(3150,380,t,"sawtooth",0.5)}},
@@ -470,7 +498,7 @@ const SOUNDS={
     level:w=>{if(!ownBuf)return SOUNDS.sirene.level(w);const s=audio.createBufferSource(),g=audio.createGain();s.buffer=ownBuf;g.gain.value=1.4*SND.vol;s.connect(g).connect(out());s.start(audio.currentTime+w);s.stop(audio.currentTime+w+10)},
     warn:()=>SOUNDS.brand.warn()}
 };
-const snd=()=>SOUNDS[SND.kind]||SOUNDS.sirene;
+const snd=()=>{if(SND.kind==="sjov"){const k=Object.keys(FUN);return {...FUN[k[Math.floor(Math.random()*k.length)]],warn:SOUNDS.sjov.warn}}return SOUNDS[SND.kind]||SOUNDS.sirene};
 function saveSnd(){try{localStorage.setItem("tp-sound",JSON.stringify({kind:SND.kind,vol:SND.vol,rep:SND.rep,file:SND.file}))}catch{}}
 function alarmLevel(){const s=snd();for(let i=0;i<SND.rep;i++)s.level(i*(s.len+0.5));
   try{navigator.vibrate&&navigator.vibrate([600,200,600,200,600,200,1000])}catch{}}
