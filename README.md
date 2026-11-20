@@ -24,3 +24,9 @@ Supabase → Table Editor → `admins` → Insert row → mailadressen.
 
 ## Ny version
 Hæv `APP_VERSION` i `index.html` og indholdet af `version.txt` til samme værdi. Så henter telefonerne den nye side, næste gang appen åbnes.
+
+## Aflyste aftener, statistik og backup (20. nov. 2026)
+- `db/03_aflyste.sql` tilføjer `cancelled` og `note` på `evenings` og lægger uge 27 (2. juli) ind som aflyst.
+- Fra 2027 skal alle placeringer tastes; i 2026 kun præmiepladserne.
+- En påbegyndt aften gemmes i telefonen (`localStorage` "tp-draft") og hentes frem efter genindlæsning. Appen opdaterer sig ikke selv, mens der ligger en kladde.
+- Backup: .csv til Google Sheets og fuld .json fra "Regler og spillere". Automatisk natlig backup: `backup/google-sheets-backup.gs` (Apps Script i et Google-regneark, kør `installer`).

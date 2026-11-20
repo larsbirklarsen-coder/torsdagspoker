@@ -98,7 +98,7 @@ details.month>summary>span:first-child{flex:1}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
 .chart{width:100%;height:auto;display:block}
-.chart text{fill:var(--muted);font-size:11px;font-family:var(--body)}
+.chart text{fill:var(--muted);font-size:17px;font-family:var(--body)}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .zero{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 .h2h td,.h2h th{text-align:center}
@@ -160,7 +160,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-20.1";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-20.2";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -320,12 +320,12 @@ function renderStats(){
   el.innerHTML=h;
 }
 function chart(evs,rows){
-  const W=700,H=260,L=52,R=12,T=12,B=26,n=evs.length;
+  const W=700,H=300,L=70,R=14,T=14,B=34,n=evs.length;
   const series=rows.map(r=>{let c=0,j=0;const pts=[[0,0]];evs.forEach((ev,i)=>{if(r.idx[j]===i){c+=r.nets[j];j++}pts.push([i+1,c])});return {r,pts}});
   let lo=0,hi=0;series.forEach(s=>s.pts.forEach(([,v])=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));
   const step=niceStep((hi-lo)/4||100);lo=Math.floor(lo/step)*step;hi=Math.ceil(hi/step)*step;if(hi===lo)hi=lo+step;
   const x=i=>L+(W-L-R)*i/Math.max(1,n),y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
-  let g="";for(let v=lo;v<=hi+0.001;v+=step)g+=`<line class="${v===0?"zero":"grid"}" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${nf.format(v)}</text>`;
+  let g="";for(let v=lo;v<=hi+0.001;v+=step)g+=`<line class="${v===0?"zero":"grid"}" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+6}" text-anchor="end">${nf.format(v)}</text>`;
   const lab=[0,Math.floor(n/2),n-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>{const d=new Date(evs[i].date+"T12:00");return `<text x="${x(i+1)}" y="${H-6}" text-anchor="${i===0?"start":i===n-1?"end":"middle"}">${d.getDate()}. ${MONTHS[d.getMonth()].slice(0,3)} ${String(d.getFullYear()).slice(2)}</text>`}).join("");
   const lines=series.slice().reverse().map(s=>`<polyline fill="none" stroke="${s.r.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${s.pts.map(([i,v])=>x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/>
     <circle cx="${x(n)}" cy="${y(s.pts[s.pts.length-1][1])}" r="3.5" fill="${s.r.color}"/>`).join("");
