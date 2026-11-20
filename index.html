@@ -20,12 +20,14 @@
   --accent:#0f6a45; --accent-ink:#ffffff; --gain:#12784a; --loss:#b3261e; --gold:#a8760c; --warn-bg:#fdf3dc; --warn-ink:#7a5408;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --s1:#1f6feb; --s2:#d1470f; --s3:#12784a; --s4:#a8760c; --s5:#8a3ffc; --s6:#c4166c; --s7:#0f8a9d; --s8:#5b6a62;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0c1310; --surface:#141e19; --ink:#e5ede8; --muted:#92a399; --line:#25332b;
   --band:#0b3324; --band-ink:#eef5f0; --band-muted:#8fb5a1;
   --accent:#43b883; --accent-ink:#06150e; --gain:#4cc28b; --loss:#f07a70; --gold:#e0b04a; --warn-bg:#33270d; --warn-ink:#f1cf7f;
+  --s1:#6ea8ff; --s2:#ff8a5c; --s3:#4cc28b; --s4:#e0b04a; --s5:#b28dff; --s6:#ff7eb6; --s7:#4fd1e0; --s8:#a7b5ad;
   color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -81,6 +83,26 @@ button:disabled{opacity:.55;cursor:default}
 .ev-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
 .empty{text-align:center;padding:28px 16px;color:var(--muted)}
 @media (max-width:520px){.hide-sm{display:none}}
+details.month{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+details.month>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 16px;font-weight:600}
+details.month>summary::-webkit-details-marker{display:none}
+details.month>summary::before{content:"▸";color:var(--muted);margin-right:8px;transition:transform .15s}
+details.month[open]>summary::before{transform:rotate(90deg)}
+details.month>summary>span:first-child{flex:1}
+.month-body{display:flex;flex-direction:column;gap:10px;padding:0 10px 10px}
+.month-body .card{border-color:var(--line);background:var(--bg)}
+.card.cancelled{opacity:.75}
+.chips button{padding:6px 12px;font-size:13px;border-radius:99px}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--body)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .zero{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.h2h td,.h2h th{text-align:center}
+.h2h td:first-child,.h2h th:first-child{text-align:left}
 .clock{align-items:center;text-align:center;gap:6px;padding-block:22px}
 .clock .lvl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .clock .blinds{font-family:var(--display);font-weight:700;font-size:clamp(44px,15vw,96px);line-height:1;font-variant-numeric:tabular-nums}
@@ -112,6 +134,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
     <nav class="tabs" id="tabs">
       <a href="#merit" data-link="merit">Order of Merit</a>
       <a href="#aftener" data-link="aftener">Aftener</a>
+      <a href="#statistik" data-link="statistik">Statistik</a>
       <a href="#ny" data-link="ny" id="tab-ny">Ny aften</a>
       <a href="#ur" data-link="ur">Blind-ur</a>
       <a href="#regler" data-link="regler">Regler og spillere</a>
@@ -125,6 +148,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
     <section id="login" class="card" hidden></section>
     <section data-tab="merit" id="sec-merit"></section>
     <section data-tab="aftener" id="sec-aftener"></section>
+    <section data-tab="statistik" id="sec-statistik"></section>
     <section data-tab="ny" id="sec-ny"></section>
     <section data-tab="ur" id="sec-ur"></section>
     <section data-tab="regler" id="sec-regler"></section>
@@ -136,13 +160,25 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-19.8";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-20.1";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
     levels:[[10,20],[20,40],[30,60],[50,100],[75,150],[100,200],[200,400],[400,800],[800,1600]].map(([sb,bb])=>({sb,bb}))}};
 const S={sb:null,session:null,admins:[],confirmAdmin:null,settings:null,players:[],evenings:[],canWrite:false,loaded:false,
-  season:null,draft:null,editingId:null,confirmDel:null,settingsDirty:false,busy:false,showLogin:false,loginSent:false};
+  season:null,draft:null,editingId:null,confirmDel:null,settingsDirty:false,busy:false,showLogin:false,loginSent:false,
+  raw:[],evSeason:null,evQuery:"",evFilter:"alle",openMonths:{},statSeason:null,restored:false,restore:null};
+
+/* Påbegyndt aften gemmes i telefonen ved hver ændring, så den overlever genindlæsning og opdateringer. */
+const DK="tp-draft";
+function persistDraft(){try{const d=S.draft;
+  if(d&&(d.players.length||d.cancelled||S.editingId))localStorage.setItem(DK,JSON.stringify({draft:d,editingId:S.editingId,at:Date.now()}));
+  else localStorage.removeItem(DK)}catch{}}
+function clearDraft(){S.draft=null;S.editingId=null;try{localStorage.removeItem(DK)}catch{}}
+function hasSavedDraft(){try{return !!localStorage.getItem(DK)}catch{return false}}
+function restoreDraft(){try{const x=JSON.parse(localStorage.getItem(DK));
+  if(x&&x.draft&&Date.now()-x.at<48*3600e3){S.draft=x.draft;S.editingId=x.editingId||null;return true}
+  localStorage.removeItem(DK)}catch{}return false}
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -166,10 +202,12 @@ function evResult(ev){
   (ev.games||[]).forEach(g=>g.forEach((p,i)=>{if(m[p]){m[p].won+=(ev.prizes||[])[i]||0;if(i===0)m[p].wins++}}));
   return Object.values(m).map(r=>({...r,net:r.won-r.paid})).sort((a,b)=>b.net-a.net||b.wins-a.wins);
 }
+const played=e=>!e.cancelled;
+const MONTHS=["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
 function seasons(){const y=new Set(S.evenings.map(e=>e.season));y.add(new Date().getFullYear());return [...y].sort((a,b)=>b-a)}
 function merit(season){
   const t={};
-  S.evenings.filter(e=>e.season===season).forEach(ev=>evResult(ev).forEach(r=>{
+  S.evenings.filter(e=>e.season===season&&played(e)).forEach(ev=>evResult(ev).forEach(r=>{
     const a=t[r.id]||(t[r.id]={id:r.id,n:0,paid:0,won:0,wins:0,net:0});
     a.n++;a.paid+=r.paid;a.won+=r.won;a.wins+=r.wins;a.net+=r.net;}));
   return Object.values(t).sort((a,b)=>b.net-a.net||b.wins-a.wins);
@@ -181,7 +219,7 @@ function renderMerit(){
   if(!S.loaded){el.innerHTML=`<div class="card empty">Henter resultater …</div>`;return}
   const ss=seasons(); if(!ss.includes(S.season))S.season=ss[0];
   const rows=merit(S.season);
-  const evs=S.evenings.filter(e=>e.season===S.season);
+  const evs=S.evenings.filter(e=>e.season===S.season&&played(e));
   const last=evs[0];
   let h=`<div class="row spread"><h2>Order of Merit ${S.season}</h2>
     <label style="flex-direction:row;align-items:center;gap:8px">Sæson
@@ -209,35 +247,192 @@ function settleTable(ev){
 function renderEvenings(){
   const el=$("#sec-aftener");
   if(!S.loaded){el.innerHTML=`<div class="card empty">Henter aftener …</div>`;return}
-  const evs=S.evenings.filter(e=>e.season===S.season);
-  let h=`<div class="row spread"><h2>Aftener ${S.season}</h2>${writable()?`<button class="primary" data-act="new">Ny aften</button>`:""}</div>`;
-  if(!evs.length){el.innerHTML=h+`<div class="card empty">Ingen aftener i ${S.season} endnu.</div>`;return}
-  h+=evs.map(ev=>{
-    const games=(ev.games||[]).map((g,i)=>`<div class="small"><b>Spil ${i+1}:</b> ${g.map((p,j)=>`${j+1}. ${esc(pname(p))}`).join(" · ")}</div>`).join("");
-    const pot=(ev.players||[]).length*(ev.buyIn||0);
-    const del=S.confirmDel===ev.id
-      ?`<span class="small">Slet aftenen permanent?</span><button class="danger" data-act="del-yes" data-id="${esc(ev.id)}">Ja, slet</button><button data-act="del-no">Fortryd</button>`
-      :`${ev.results?"":`<button data-act="edit" data-id="${esc(ev.id)}">Ret</button>`}<button class="danger" data-act="del" data-id="${esc(ev.id)}">Slet</button>`;
-    return `<article class="card"><div class="ev-head"><h3>${esc(fmtDate(ev.date))}${ev.host?` · hos ${esc(pname(ev.host))}`:""}</h3><span class="pill">${(ev.players||[]).length} spillere · pulje ${kr(pot)} pr. spil</span>${ev.results?`<span class="pill">Fra regnearket</span>`:""}</div>
-      ${games}${settleTable(ev)}${writable()?`<div class="row">${del}</div>`:""}</article>`;
+  if(S.evSeason===null)S.evSeason=String(S.season);
+  const ss=seasons(),F=[["alle","Alle"],["spillet","Spillet"],["aflyst","Aflyst"]];
+  el.innerHTML=`<div class="row spread"><h2>Aftener</h2>${writable()?`<button class="primary" data-act="new">Ny aften</button>`:""}</div>
+    <div class="card" style="gap:10px"><div class="row">
+      <select id="ev-season" aria-label="Sæson"><option value="alle" ${S.evSeason==="alle"?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.evSeason?"selected":""}>${y}</option>`).join("")}</select>
+      <input type="search" id="ev-q" placeholder="Søg: fx stein marts, aflyst, hos ole" value="${esc(S.evQuery)}" style="flex:1 1 200px" autocomplete="off"></div>
+      <div class="row chips">${F.map(([k,t])=>`<button data-act="evf" data-f="${k}" class="${S.evFilter===k?"on":""}">${t}</button>`).join("")}</div></div>
+    <div id="ev-list" style="display:flex;flex-direction:column;gap:12px"></div>`;
+  renderEvList();
+}
+function evText(ev){
+  const d=new Date(ev.date+"T12:00");
+  return [fmtDate(ev.date),MONTHS[d.getMonth()],ev.season,ev.host?"hos "+pname(ev.host):"",ev.host?pname(ev.host):"",
+    ...(ev.players||[]).map(pname),ev.cancelled?"aflyst":"spillet",ev.note||"",ev.results?"regnearket":""].join(" ").toLowerCase();
+}
+function renderEvList(){
+  const el=$("#ev-list");if(!el)return;
+  const q=S.evQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const evs=S.evenings.filter(e=>(S.evSeason==="alle"||String(e.season)===S.evSeason)
+    &&(S.evFilter==="alle"||(S.evFilter==="aflyst")===!!e.cancelled)
+    &&(!q.length||q.every(w=>evText(e).includes(w))));
+  if(!evs.length){el.innerHTML=`<div class="card empty">${q.length?"Ingen aftener passer til søgningen.":"Ingen aftener her endnu."}</div>`;return}
+  const groups=[];for(const ev of evs){const k=ev.date.slice(0,7);let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,evs:[]});g.evs.push(ev)}
+  el.innerHTML=groups.map((g,i)=>{
+    const [y,m]=g.k.split("-"),p=g.evs.filter(played).length,a=g.evs.length-p;
+    const open=q.length||S.openMonths[g.k]!==undefined?(q.length?true:S.openMonths[g.k]):i===0;
+    return `<details class="month" data-month="${g.k}" ${open?"open":""}><summary><span>${MONTHS[+m-1][0].toUpperCase()+MONTHS[+m-1].slice(1)} ${y}</span>
+      <span class="small muted">${p?`${p} ${p===1?"aften":"aftener"}`:""}${p&&a?" · ":""}${a?`${a} aflyst`:""}</span></summary>
+      <div class="month-body">${g.evs.map(evCard).join("")}</div></details>`;
   }).join("");
+}
+function evCard(ev){
+  const del=!writable()?"":S.confirmDel===ev.id
+    ?`<div class="row"><span class="small">Slet aftenen permanent?</span><button class="danger" data-act="del-yes" data-id="${esc(ev.id)}">Ja, slet</button><button data-act="del-no">Fortryd</button></div>`
+    :`<div class="row">${ev.results?"":`<button data-act="edit" data-id="${esc(ev.id)}">Ret</button>`}<button class="danger" data-act="del" data-id="${esc(ev.id)}">Slet</button></div>`;
+  const head=`<div class="ev-head"><h3>${esc(fmtDate(ev.date))}${ev.host?` · hos ${esc(pname(ev.host))}`:""}</h3>`;
+  if(ev.cancelled)return `<article class="card cancelled">${head}<span class="pill">Aflyst</span></div>${ev.note&&ev.note!=="Aflyst"?`<div class="small">${esc(ev.note)}</div>`:""}${del}</article>`;
+  const games=(ev.games||[]).map((g,i)=>`<div class="small"><b>Spil ${i+1}:</b> ${g.map((p,j)=>p?`${j+1}. ${esc(pname(p))}`:"").filter(Boolean).join(" · ")}</div>`).join("");
+  const pot=(ev.players||[]).length*(ev.buyIn||0);
+  return `<article class="card">${head}<span class="pill">${(ev.players||[]).length} spillere · pulje ${kr(pot)} pr. spil</span>${ev.results?`<span class="pill">Kun netto (regnearket)</span>`:""}</div>
+    ${games}${ev.note?`<div class="small muted">${esc(ev.note)}</div>`:""}${settleTable(ev)}${del}</article>`;
+}
+
+/* ---------- Statistik ---------- */
+const COLORS=["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+const pct=x=>Math.round(x*100)+" %";
+function renderStats(){
+  const el=$("#sec-statistik");
+  if(!S.loaded){el.innerHTML=`<div class="card empty">Henter statistik …</div>`;return}
+  const ss=seasons();if(S.statSeason===null)S.statSeason=String(S.season||ss[0]);
+  const all=S.statSeason==="alle";
+  const evs=S.evenings.filter(e=>played(e)&&(all||String(e.season)===S.statSeason)).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const cancelled=S.evenings.filter(e=>e.cancelled&&(all||String(e.season)===S.statSeason)).length;
+  let h=`<div class="row spread"><h2>Statistik</h2><select id="st-season" aria-label="Sæson"><option value="alle" ${all?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.statSeason?"selected":""}>${y}</option>`).join("")}</select></div>`;
+  if(!evs.length){el.innerHTML=h+`<div class="card empty">Ingen spillede aftener i perioden.</div>`;return}
+  /* pr. spiller */
+  const P={};
+  evs.forEach((ev,i)=>evResult(ev).forEach(r=>{const p=P[r.id]||(P[r.id]={id:r.id,nets:[],idx:[],hosted:0});p.nets.push(r.net);p.idx.push(i)}));
+  evs.forEach(ev=>{if(ev.host&&P[ev.host])P[ev.host].hosted++});
+  const rows=Object.values(P).map(p=>{let st=0,best=0;p.nets.forEach(n=>{st=n>0?st+1:0;best=Math.max(best,st)});
+    const sum=p.nets.reduce((a,b)=>a+b,0);return {...p,n:p.nets.length,sum,plus:p.nets.filter(n=>n>0).length/p.nets.length,
+      max:Math.max(...p.nets),min:Math.min(...p.nets),streak:best}}).sort((a,b)=>b.sum-a.sum);
+  rows.forEach((r,i)=>r.color=`var(${COLORS[i%COLORS.length]})`);
+  h+=`<div class="row" style="gap:8px"><span class="pill">${evs.length} spillede aftener</span>${cancelled?`<span class="pill">${cancelled} aflyst</span>`:""}<span class="pill">${fmtDate(evs[0].date)} – ${fmtDate(evs[evs.length-1].date)}</span></div>`;
+  h+=`<div class="card"><h3>Fortjeneste over tid</h3>${chart(evs,rows)}
+    <div class="legend">${rows.map(r=>`<span><i style="background:${r.color}"></i>${esc(pname(r.id))}</span>`).join("")}</div></div>`;
+  h+=`<div class="card"><h3>Aftener</h3><div class="tbl"><table><thead><tr><th>Spiller</th><th class="num">Aftener</th><th class="num">I plus</th><th class="num">Bedste</th><th class="num">Værste</th><th class="num" title="Flest plus-aftener i træk">Stime</th><th class="num">Vært</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${esc(pname(r.id))}${isGuest(r.id)?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num">${pct(r.plus)}</td><td class="num gain">${net(r.max)}</td><td class="num loss">${net(r.min)}</td><td class="num">${r.streak}</td><td class="num">${r.hosted}</td></tr>`).join("")}
+    </tbody></table></div><div class="small muted">I plus = andel af aftenerne med gevinst. Stime = flest plus-aftener i træk. Vært = antal aftener som vært.</div></div>`;
+  h+=placeStats(evs);
   el.innerHTML=h;
+}
+function chart(evs,rows){
+  const W=700,H=260,L=52,R=12,T=12,B=26,n=evs.length;
+  const series=rows.map(r=>{let c=0,j=0;const pts=[[0,0]];evs.forEach((ev,i)=>{if(r.idx[j]===i){c+=r.nets[j];j++}pts.push([i+1,c])});return {r,pts}});
+  let lo=0,hi=0;series.forEach(s=>s.pts.forEach(([,v])=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));
+  const step=niceStep((hi-lo)/4||100);lo=Math.floor(lo/step)*step;hi=Math.ceil(hi/step)*step;if(hi===lo)hi=lo+step;
+  const x=i=>L+(W-L-R)*i/Math.max(1,n),y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  let g="";for(let v=lo;v<=hi+0.001;v+=step)g+=`<line class="${v===0?"zero":"grid"}" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${nf.format(v)}</text>`;
+  const lab=[0,Math.floor(n/2),n-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>{const d=new Date(evs[i].date+"T12:00");return `<text x="${x(i+1)}" y="${H-6}" text-anchor="${i===0?"start":i===n-1?"end":"middle"}">${d.getDate()}. ${MONTHS[d.getMonth()].slice(0,3)} ${String(d.getFullYear()).slice(2)}</text>`}).join("");
+  const lines=series.slice().reverse().map(s=>`<polyline fill="none" stroke="${s.r.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${s.pts.map(([i,v])=>x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/>
+    <circle cx="${x(n)}" cy="${y(s.pts[s.pts.length-1][1])}" r="3.5" fill="${s.r.color}"/>`).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Samlet fortjeneste pr. spiller over aftenerne">${g}${lab}${lines}</svg>`;
+}
+function niceStep(raw){const p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
+function placeStats(evs){
+  const withG=evs.filter(e=>e.games&&e.games.length);
+  if(!withG.length)return `<div class="card"><h3>Placeringer</h3><div class="muted">Placeringer registreres fra 19. nov. 2026 (præmiepladser) og fuldt fra 2027. Aftenerne fra regnearket har kun netto. Sejre, fordeling og indbyrdes opgør dukker op her, når der er tastet aftener med placeringer.</div></div>`;
+  const P={},maxN=Math.max(...withG.map(e=>e.players.length));const H2H={};
+  withG.forEach(ev=>ev.games.forEach(g=>{
+    const npr=(ev.prizes||[]).length,full=g.filter(Boolean).length===ev.players.length;
+    ev.players.forEach(p=>{const a=P[p]||(P[p]={id:p,games:0,wins:0,itm:0,dist:Array(maxN).fill(0),unk:0,sumPl:0,nFull:0});
+      const i=g.indexOf(p);a.games++;if(i===0)a.wins++;if(i>=0&&i<npr)a.itm++;if(i>=0)a.dist[i]++;else a.unk++;if(full&&i>=0){a.sumPl+=i+1;a.nFull++}});
+    ev.players.forEach(p=>ev.players.forEach(q=>{if(p===q)return;const ip=g.indexOf(p),iq=g.indexOf(q);
+      if(ip>=0&&(iq<0||ip<iq)){(H2H[p]=H2H[p]||{})[q]=(H2H[p][q]||0)+1}}));
+  }));
+  const rows=Object.values(P).sort((a,b)=>b.wins-a.wins||b.itm/b.games-a.itm/a.games);
+  const ids=rows.map(r=>r.id),nG=withG.reduce((s,e)=>s+e.games.length,0);
+  let h=`<div class="card"><h3>Placeringer <span class="small muted">· ${nG} spil på ${withG.length} ${withG.length===1?"aften":"aftener"}</span></h3>
+    <div class="tbl"><table><thead><tr><th>Spiller</th><th class="num">Spil</th><th class="num">Sejre</th><th class="num">Præmie</th><th class="num">Gns. plads</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${esc(pname(r.id))}</td><td class="num">${r.games}</td><td class="num">${r.wins}</td><td class="num">${pct(r.itm/r.games)}</td><td class="num muted">${r.nFull?(r.sumPl/r.nFull).toLocaleString("da-DK",{maximumFractionDigits:1}):"–"}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="small muted">Præmie = andel af spillene med præmieplads. Gns. plads regnes kun på spil, hvor alle pladser er tastet (fra 2027).</div></div>`;
+  h+=`<div class="card"><h3>Hvor tit på hver plads</h3><div class="tbl"><table class="h2h"><thead><tr><th>Spiller</th>${Array.from({length:maxN},(_,i)=>`<th>${i+1}.</th>`).join("")}<th title="Ingen præmie, plads ikke tastet">Ukendt</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${esc(pname(r.id))}</td>${r.dist.map(v=>`<td>${v||"·"}</td>`).join("")}<td class="muted">${r.unk||"·"}</td></tr>`).join("")}</tbody></table></div></div>`;
+  h+=`<div class="card"><h3>Hvem ender foran hvem</h3><div class="tbl"><table class="h2h"><thead><tr><th></th>${ids.map(q=>`<th>${esc(pname(q).slice(0,3))}</th>`).join("")}</tr></thead><tbody>
+    ${ids.map(p=>`<tr><td>${esc(pname(p))}</td>${ids.map(q=>p===q?`<td class="muted">–</td>`:`<td>${(H2H[p]||{})[q]||0}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="small muted">Læses vandret: antal spil, hvor spilleren i rækken sluttede foran spilleren i kolonnen.</div></div>`;
+  return h;
+}
+
+/* ---------- Backup ---------- */
+function download(name,text,type){
+  const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500);
+}
+const stamp=()=>new Date().toISOString().slice(0,16).replace("T","_").replace(":","");
+function csvRows(){
+  const rows=[["Dato","Sæson","Status","Vært","Spiller","Gæst","Spil","Placering","Indskud (kr)","Gevinst (kr)","Netto (kr)","Note"]];
+  S.evenings.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(ev=>{
+    const base=[ev.date,ev.season,ev.cancelled?"Aflyst":"Spillet",ev.host?pname(ev.host):""];
+    if(ev.cancelled){rows.push([...base,"","","","","","","",ev.note||""]);return}
+    if(ev.games&&ev.games.length){ev.games.forEach((g,gi)=>ev.players.forEach(p=>{const i=g.indexOf(p),w=i>=0?((ev.prizes||[])[i]||0):0;
+      rows.push([...base,pname(p),isGuest(p)?"ja":"",gi+1,i>=0?i+1:"",ev.buyIn,w,w-ev.buyIn,ev.note||""])}))}
+    else evResult(ev).forEach(r=>rows.push([...base,pname(r.id),isGuest(r.id)?"ja":"","alle","",r.paid,r.won,r.net,(ev.note||"")+(ev.results?" (kun netto)":"")]));
+  });
+  return rows;
+}
+const toCsv=rows=>"﻿"+rows.map(r=>r.map(v=>{v=String(v??"");return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(";")).join("\r\n");
+function backupJson(){return JSON.stringify({app:"torsdagspoker",version:APP_VERSION,exportedAt:new Date().toISOString(),config:S.settings,players:S.players,evenings:S.raw},null,1)}
+async function readRestore(file){
+  if(!file)return;
+  try{const j=JSON.parse(await file.text());
+    if(j.app!=="torsdagspoker"||!Array.isArray(j.evenings)||!Array.isArray(j.players))throw 0;
+    S.restore=j;flash(`Backup fra ${fmtDate((j.exportedAt||"").slice(0,10))} er klar: ${j.evenings.length} aftener og ${j.players.length} spillere. Tryk "Ja, læg backup tilbage" for at fortsætte.`,true);renderRules();
+  }catch{flash("Filen er ikke en backup fra Torsdagspoker.",true)}
+}
+async function doRestore(){
+  const j=S.restore;if(!j)return;
+  await write(async()=>{
+    let r=await S.sb.from("players").upsert(j.players.map(p=>({id:p.id,name:p.name,active:p.active!==false,guest:!!p.guest})));if(r.error)throw r.error;
+    r=await S.sb.from("evenings").upsert(j.evenings);if(r.error)throw r.error;
+    if(j.config){r=await S.sb.from("config").upsert({id:"main",data:j.config});if(r.error)throw r.error}
+    S.restore=null;flash("Backuppen er lagt tilbage.");
+  });
+}
+function backupCard(){
+  const w=writable();
+  return `<div class="card"><h3>Backup</h3>
+    <div class="small muted">Alle data kan hentes ud af appen, så I ikke er afhængige af den.</div>
+    <div class="row"><button data-act="bk-csv">⬇ Hent til Google Sheets (.csv)</button><button data-act="bk-json">⬇ Fuld backup (.json)</button></div>
+    <details><summary class="small" style="cursor:pointer">Sådan åbner du .csv-filen i Google Sheets</summary><ol class="small">
+      <li>Gå til <b>sheets.google.com</b> og opret et tomt regneark.</li><li><b>Filer → Importér → Upload</b> og vælg filen.</li>
+      <li>Vælg <b>Erstat regneark</b> og skilletegn <b>Semikolon</b>, og tryk <b>Importér data</b>.</li>
+      <li>Del arket med den anden via <b>Del</b>-knappen.</li></ol>
+      <div class="small muted">Én række pr. spiller pr. spil. Aftener fra regnearket har én række pr. spiller (Spil = "alle"). Aflyste aftener er med.</div></details>
+    ${w?`<details><summary class="small" style="cursor:pointer">Automatisk backup til Google Sheets hver nat</summary><ol class="small">
+      <li>Opret et tomt Google-regneark, fx "Torsdagspoker backup".</li><li>Vælg <b>Udvidelser → Apps Script</b>, slet det, der står, og sæt scriptet ind: <button data-act="bk-script" style="padding:4px 8px;font-size:13px">Kopiér scriptet</button></li>
+      <li>Tryk <b>Gem</b> (disketten). Vælg funktionen <b>installer</b> i rullemenuen øverst og tryk <b>Kør</b>. Godkend adgangen med din Gmail.</li>
+      <li>Nu henter arket alle aftener hver nat kl. ca. 4. Del arket med Mikael.</li></ol></details>
+    <div class="row"><label class="check" for="restore-file" style="cursor:pointer">⬆ Læg en backup tilbage …<input type="file" id="restore-file" accept=".json,application/json" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none"></label>
+      ${S.restore?`<button class="danger" data-act="bk-restore">Ja, læg backup tilbage</button><button data-act="bk-restore-no">Fortryd</button>`:""}</div>
+    <div class="small muted">Gendannelse overskriver aftener og spillere med samme id. Intet slettes.</div>`:""}</div>`;
 }
 
 /* ---------- Ny / ret aften ---------- */
-function newDraft(){const c=cfg();return{date:today(),host:"",players:[],games:Array.from({length:c.games},()=>[])}}
+function newDraft(){const c=cfg();return{date:today(),host:"",players:[],games:Array.from({length:c.games},()=>[]),cancelled:false,note:""}}
+/* Fra 2027 skal alle pladser tastes. Før det kun præmiepladserne (resten er valgfrie). */
+const fullPlaces=d=>(d.date||"")>="2027-01-01";
 function syncDraft(){
-  const c=cfg(),d=S.draft,n=d.players.length,pr=c.prizes[String(n)]||[];
+  const c=cfg(),d=S.draft,n=d.players.length;
+  if(!d.games)d.games=[];
   if(!S.editingId)while(d.games.length<c.games)d.games.push([]);
-  d.games=d.games.map(g=>Array.from({length:pr.length},(_,i)=>d.players.includes(g[i])?g[i]:""));
+  d.games=d.games.map(g=>Array.from({length:n},(_,i)=>d.players.includes(g[i])?g[i]:""));
 }
 function draftIssues(){
   const c=cfg(),d=S.draft,n=d.players.length,out=[];
   if(!d.date)out.push("Vælg en dato.");
+  if(d.cancelled)return out;
+  const pr=c.prizes[String(n)]||[];
   if(n<c.minPlayers)out.push(`Der skal være mindst ${c.minPlayers} spillere (valgt: ${n}).`);
-  else if(!c.prizes[String(n)])out.push(`Der er ingen præmier for ${n} spillere. Tilføj dem under Regler og spillere.`);
-  d.games.forEach((g,i)=>{if(g.some(x=>!x))out.push(`Spil ${i+1}: vælg alle placeringer.`);
-    else if(new Set(g).size!==g.length)out.push(`Spil ${i+1}: samme spiller står på flere pladser.`)});
+  else if(!pr.length)out.push(`Der er ingen præmier for ${n} spillere. Tilføj dem under Regler og spillere.`);
+  const need=fullPlaces(d)?n:pr.length;
+  d.games.forEach((g,i)=>{const f=g.filter(Boolean);
+    if(g.slice(0,need).some(x=>!x))out.push(need===n?`Spil ${i+1}: vælg alle ${n} placeringer.`:`Spil ${i+1}: vælg 1.–${need}. plads (præmiepladserne).`);
+    else if(new Set(f).size!==f.length)out.push(`Spil ${i+1}: samme spiller står på flere pladser.`)});
   return out;
 }
 function renderEditor(){
@@ -248,40 +443,47 @@ function renderEditor(){
   syncDraft();
   const c=cfg(),d=S.draft,n=d.players.length,pr=c.prizes[String(n)]||[];
   const ev=S.editingId?S.evenings.find(e=>e.id===S.editingId):null;
-  const buyIn=ev?ev.buyIn:c.buyIn, prizes=ev&&ev.players.length===n&&ev.prizes?ev.prizes:pr;
+  const buyIn=ev&&ev.buyIn?ev.buyIn:c.buyIn, prizes=ev&&ev.players.length===n&&ev.prizes?ev.prizes:pr;
   const shown=S.players.filter(p=>p.active!==false||d.players.includes(p.id));
-  let h=`<div class="row spread"><h2>${S.editingId?"Ret aften":"Ny aften"}</h2>${S.editingId?`<button data-act="cancel">Fortryd</button>`:""}</div>`;
+  const dirty=d.players.length||d.cancelled||S.editingId;
+  let h=`<div class="row spread"><h2>${S.editingId?"Ret aften":"Ny aften"}</h2>
+    <div class="row">${dirty?`<span class="pill" title="Gemmes på telefonen ved hver ændring">✓ Kladde gemt</span>`:""}${S.editingId?`<button data-act="cancel">Fortryd</button>`:dirty?`<button data-act="draft-reset">Start forfra</button>`:""}</div></div>`;
   if(!S.players.length){el.innerHTML=h+`<div class="card empty">Der er ingen spillere endnu. Opret dem under <a href="#regler">Regler og spillere</a>.</div>`;return}
   h+=`<div class="card"><div class="row"><label for="ev-date">Dato<input type="date" id="ev-date" value="${esc(d.date)}"></label>
     <label for="ev-host">Sted (vært)<select id="ev-host"><option value="">Ikke valgt</option>${S.players.filter(p=>!p.guest&&(p.active!==false||p.id===d.host)).map(p=>`<option value="${esc(p.id)}" ${p.id===d.host?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label></div>
-    <div><h3>Hvem spiller med?</h3><div class="small muted">Mindst ${c.minPlayers}. Hver betaler ${kr(buyIn)} pr. spil.</div></div>
-    <div class="players">${shown.map(p=>`<label class="check"><input type="checkbox" data-player="${esc(p.id)}" ${d.players.includes(p.id)?"checked":""}>${label(p)}</label>`).join("")}</div></div>`;
-  if(n>=c.minPlayers&&prizes.length){
-    const pot=n*buyIn,sum=prizes.reduce((a,b)=>a+b,0);
+    <label class="check" style="align-self:flex-start"><input type="checkbox" id="ev-cancel" ${d.cancelled?"checked":""}>Aftenen er aflyst</label>
+    <label for="ev-note">${d.cancelled?"Årsag":"Note (valgfri)"}<input id="ev-note" value="${esc(d.note||"")}" maxlength="120" placeholder="${d.cancelled?"fx for få spillere, juleferie":"fx flyttet til lørdag"}"></label>
+    ${d.cancelled?"":`<div><h3>Hvem spiller med?</h3><div class="small muted">Mindst ${c.minPlayers}. Hver betaler ${kr(buyIn)} pr. spil.</div></div>
+    <div class="players">${shown.map(p=>`<label class="check"><input type="checkbox" data-player="${esc(p.id)}" ${d.players.includes(p.id)?"checked":""}>${label(p)}</label>`).join("")}</div>`}</div>`;
+  if(!d.cancelled&&n>=c.minPlayers&&prizes.length){
+    const pot=n*buyIn,sum=prizes.reduce((a,b)=>a+b,0),full=fullPlaces(d);
     h+=`<div class="card"><div class="ev-head"><h3>Placeringer</h3><span class="pill">Pulje ${kr(pot)} pr. spil → ${prizes.map(kr).join(" / ")}</span></div>
       ${sum!==pot?`<div class="notice">Præmierne (${kr(sum)}) passer ikke med puljen (${kr(pot)}). Ret dem under Regler og spillere.</div>`:""}
-      <div class="games">${d.games.map((g,gi)=>`<div class="game"><h3>Spil ${gi+1}</h3>${g.map((sel,pi)=>`<label for="g${gi}p${pi}">${pi+1}. plads · ${kr(prizes[pi])}
-        <select id="g${gi}p${pi}" data-game="${gi}" data-place="${pi}"><option value="">Vælg spiller</option>${d.players.map(id=>`<option value="${esc(id)}" ${id===sel?"selected":""}>${esc(pname(id))}</option>`).join("")}</select></label>`).join("")}</div>`).join("")}</div></div>`;
-    const preview={players:d.players,buyIn,prizes,games:d.games.map(g=>g.filter(Boolean))};
+      <div class="small muted">${full?"Tast alle pladser, fra vinderen til den, der røg først ud.":"Præmiepladserne skal tastes. De øvrige pladser er valgfrie i 2026 og skal tastes fra 2027."}</div>
+      <div class="games">${d.games.map((g,gi)=>`<div class="game"><h3>Spil ${gi+1}</h3>${g.map((sel,pi)=>`<label for="g${gi}p${pi}">${pi+1}. plads · ${pi<prizes.length?kr(prizes[pi]):`<span class="muted">ingen præmie${full?"":" · valgfri"}</span>`}
+        <select id="g${gi}p${pi}" data-game="${gi}" data-place="${pi}"><option value="">Vælg spiller</option>${d.players.map(id=>`<option value="${esc(id)}" ${id===sel?"selected":""} ${id!==sel&&g.includes(id)?"disabled":""}>${esc(pname(id))}</option>`).join("")}</select></label>`).join("")}</div>`).join("")}</div></div>`;
+    const preview={players:d.players,buyIn,prizes,games:d.games};
     h+=`<div class="card"><h3>Afregning i aften</h3>${settleTable(preview)}</div>`;
   }
   const iss=draftIssues();
   h+=`<div class="row">${iss.length?`<div class="small muted" style="flex:1 1 240px">${iss.map(esc).join("<br>")}</div>`:""}
-    <button class="primary" data-act="save" ${iss.length||S.busy?"disabled":""}>${S.editingId?"Gem ændringer":"Gem aften"}</button></div>`;
+    <button class="primary" data-act="save" ${iss.length||S.busy?"disabled":""}>${S.editingId?"Gem ændringer":d.cancelled?"Gem som aflyst":"Gem aften"}</button></div>`;
   el.innerHTML=h;
 }
 async function saveDraft(){
   const c=cfg(),d=S.draft,n=d.players.length;
   const ev=S.editingId?S.evenings.find(e=>e.id===S.editingId):null;
   const keep=ev&&ev.players.length===n&&ev.prizes;
-  const row={date:d.date,host:d.host||null,season:+d.date.slice(0,4),players:[...d.players],
-    buy_in:ev?ev.buyIn:c.buyIn,game_count:d.games.length,
-    prizes:keep?[...ev.prizes]:[...(c.prizes[String(n)]||[])],games:d.games.map(g=>[...g]),updated_at:new Date().toISOString()};
+  const base={date:d.date,host:d.host||null,season:+d.date.slice(0,4),note:(d.note||"").trim()||null,updated_at:new Date().toISOString()};
+  const row=d.cancelled
+    ?{...base,cancelled:true,note:base.note||"Aflyst",players:[],buy_in:0,game_count:0,prizes:null,games:null,results:null}
+    :{...base,cancelled:false,players:[...d.players],buy_in:ev&&ev.buyIn?ev.buyIn:c.buyIn,game_count:d.games.length,
+      prizes:keep?[...ev.prizes]:[...(c.prizes[String(n)]||[])],games:d.games.map(g=>{const x=[...g];while(x.length&&!x[x.length-1])x.pop();return x})};
   await write(async()=>{
     const r=S.editingId?await S.sb.from("evenings").update(row).eq("id",S.editingId)
                        :await S.sb.from("evenings").insert({id:newId(),...row});
     if(r.error)throw r.error;
-    S.season=row.season;S.draft=null;S.editingId=null;flash("Aftenen er gemt.");location.hash="#merit";
+    S.season=row.season;clearDraft();flash(d.cancelled?"Aftenen er gemt som aflyst.":"Aftenen er gemt.");location.hash=d.cancelled?"#aftener":"#merit";
   });
 }
 
@@ -298,7 +500,7 @@ function renderRules(){
       <div class="tbl"><table><thead><tr><th>Spillere</th><th class="num">Pulje pr. spil</th><th>Præmier</th></tr></thead><tbody>
       ${counts.map(n=>`<tr><td>${n}</td><td class="num">${kr(n*c.buyIn)}</td><td>${(c.prizes[String(n)]||[]).map(kr).join(" / ")||"–"}</td></tr>`).join("")}</tbody></table></div></div>
       <div class="card"><h3>Spillere</h3><div>${S.players.filter(p=>p.active!==false).map(label).join(", ")||"Ingen endnu"}</div></div>
-      <div class="card"><h3>Blind-ur</h3><div>${c.blinds.minutes} min pr. niveau · ${(c.blinds.levels||[]).map(lvlText).join(" → ")}</div></div>`;
+      <div class="card"><h3>Blind-ur</h3><div>${c.blinds.minutes} min pr. niveau · ${(c.blinds.levels||[]).map(lvlText).join(" → ")}</div></div>`+backupCard();
     el.innerHTML=h;return;
   }
   h+=`<form class="card" id="f-settings"><h3>Spilleregler</h3><div class="row">
@@ -334,6 +536,7 @@ function renderRules(){
     <input type="text" autocomplete="username" value="${esc(me)}" hidden>
     <div class="row"><input type="password" id="pw1" placeholder="Ny adgangskode" autocomplete="new-password" style="flex:1 1 180px"><input type="password" id="pw2" placeholder="Gentag" autocomplete="new-password" style="flex:1 1 180px"></div>
     <div class="row"><button class="primary" type="submit">Gem adgangskode</button></div></form>`;
+  h+=backupCard();
   el.innerHTML=h;
 }
 async function saveSettings(){
@@ -392,6 +595,7 @@ async function checkAdmin(){
   const {data,error}=await S.sb.rpc("is_admin");
   S.canWrite=!error&&data===true;
   if(S.canWrite)await loadAdmins();
+  if(S.canWrite&&S.restored){S.restored=false;location.hash="#ny";flash("Din påbegyndte aften er hentet frem igen.")}
   render();
 }
 
@@ -408,8 +612,9 @@ async function load(){
     S.sb.from("evenings").select("*").order("date",{ascending:false})]);
   if(c.error||p.error||e.error){flash("Resultaterne kunne ikke hentes. Tjek forbindelsen og prøv igen.",true);return}
   S.settings=c.data?c.data.data:null;S.players=p.data;
+  S.raw=e.data;
   S.evenings=e.data.map(r=>({id:r.id,date:r.date,host:r.host,season:r.season,players:r.players||[],buyIn:r.buy_in,
-    gameCount:r.game_count,prizes:r.prizes,games:r.games,results:r.results}));
+    gameCount:r.game_count,prizes:r.prizes,games:r.games,results:r.results,cancelled:!!r.cancelled,note:r.note||""}));
   S.loaded=true;render();
 }
 let flashT;
@@ -622,7 +827,7 @@ function parseLevels(txt){
 const levelsText=L=>L.map(x=>x.pause?`pause ${x.minutes}`:`${x.sb}/${x.bb}${x.ante?"/"+x.ante:""}`).join("\n");
 
 /* ---------- navigation ---------- */
-const TABS=["merit","aftener","ny","ur","regler"];
+const TABS=["merit","aftener","statistik","ny","ur","regler"];
 function tab(){const t=location.hash.slice(1);return TABS.includes(t)?t:"merit"}
 function render(){
   const t=tab(),c=cfg();
@@ -632,11 +837,12 @@ function render(){
   document.querySelectorAll("[data-tab]").forEach(s=>s.classList.toggle("on",s.dataset.tab===t));
   renderLogin();renderMerit();renderEvenings();renderEditor();renderRules();
   if(t==="ur"||!$("#clock"))renderClock();
+  if(t==="statistik")renderStats();
   if(t!=="ur")document.title="Torsdagspoker";
 }
 window.addEventListener("hashchange",()=>{S.confirmDel=null;render();window.scrollTo(0,0)});
 /* Ny version? Hent den med det samme (telefonen gemmer ellers den gamle side). */
-async function checkVersion(){try{const r=await fetch("version.txt?t="+Date.now(),{cache:"no-store"});const v=(await r.text()).trim();if(r.ok&&v&&v!==APP_VERSION&&!location.search.includes("v="+encodeURIComponent(v))&&!S.busy&&!S.draft&&!C.running)location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}catch{}}
+async function checkVersion(){try{const r=await fetch("version.txt?t="+Date.now(),{cache:"no-store"});const v=(await r.text()).trim();if(r.ok&&v&&v!==APP_VERSION&&!location.search.includes("v="+encodeURIComponent(v))&&!S.busy&&!hasSavedDraft()&&!S.settingsDirty&&!C.running)location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}catch{}}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){if(C.running){keepAwake();clockTick()}if(S.sb&&!S.busy){checkVersion();load()}}});
 checkVersion();
 
@@ -647,12 +853,22 @@ $("#login-btn").addEventListener("click",async()=>{
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(a.startsWith("ck-")){clockAct(a);return}
-  if(a==="new"){S.editingId=null;S.draft=null;location.hash="#ny"}
+  if(a==="new"){if(!hasSavedDraft()||S.editingId)clearDraft();location.hash="#ny"}
   if(a==="edit"){const ev=S.evenings.find(x=>x.id===id);S.editingId=id;
-    S.draft={date:ev.date,host:ev.host||"",players:[...ev.players],games:(ev.games||[]).map(g=>[...g])};location.hash="#ny";}
-  if(a==="cancel"){S.editingId=null;S.draft=null;location.hash="#aftener"}
-  if(a==="del"){S.confirmDel=id;renderEvenings()}
-  if(a==="del-no"){S.confirmDel=null;renderEvenings()}
+    S.draft={date:ev.date,host:ev.host||"",players:[...ev.players],games:(ev.games||[]).map(g=>[...g]),cancelled:!!ev.cancelled,note:ev.note||""};
+    if(!ev.cancelled&&!S.draft.games.length)S.draft.games=Array.from({length:ev.gameCount||cfg().games},()=>[]);
+    persistDraft();location.hash="#ny";}
+  if(a==="cancel"){clearDraft();location.hash="#aftener"}
+  if(a==="bk-csv"){download(`torsdagspoker_${stamp()}.csv`,toCsv(csvRows()),"text/csv;charset=utf-8");flash("Filen til Google Sheets er hentet.")}
+  if(a==="bk-json"){download(`torsdagspoker_backup_${stamp()}.json`,backupJson(),"application/json");flash("Den fulde backup er hentet.")}
+  if(a==="bk-restore")doRestore();
+  if(a==="bk-restore-no"){S.restore=null;renderRules()}
+  if(a==="bk-script"){fetch("backup/google-sheets-backup.gs?t="+Date.now()).then(r=>r.text()).then(t=>navigator.clipboard.writeText(t))
+    .then(()=>flash("Scriptet er kopieret. Sæt det ind i Apps Script."),()=>{window.open("backup/google-sheets-backup.gs","_blank");flash("Kunne ikke kopiere automatisk. Scriptet er åbnet i en ny fane – markér alt og kopiér.",true)})}
+  if(a==="draft-reset"){clearDraft();renderEditor();flash("Kladden er ryddet.")}
+  if(a==="evf"){S.evFilter=b.dataset.f;document.querySelectorAll("[data-act=evf]").forEach(x=>x.classList.toggle("on",x===b));renderEvList()}
+  if(a==="del"){S.confirmDel=id;renderEvList()}
+  if(a==="del-no"){S.confirmDel=null;renderEvList()}
   if(a==="del-yes")write(async()=>{const r=await S.sb.from("evenings").delete().eq("id",id);if(r.error)throw r.error;S.confirmDel=null;flash("Aftenen er slettet.")});
   if(a==="save")saveDraft();
   if(a==="save-player"){const name=$("#pn-"+CSS.escape(id)).value.trim();if(!name)return;
@@ -673,12 +889,22 @@ document.addEventListener("change",e=>{
   if(t.id==="ck-rep"){SND.rep=+t.value;saveSnd()}
   if(t.id==="ck-file")pickOwn(t.files&&t.files[0]);
   if(t.id==="ck-vol"){SND.vol=+t.value;saveSnd();unlockAudio();alarmWarn()}
-  if(t.id==="ev-date"){S.draft.date=t.value;renderEditor()}
-  if(t.id==="ev-host")S.draft.host=t.value;
-  if(t.dataset.player){const d=S.draft;d.players=t.checked?[...d.players,t.dataset.player]:d.players.filter(x=>x!==t.dataset.player);renderEditor()}
-  if(t.dataset.game!==undefined){S.draft.games[+t.dataset.game][+t.dataset.place]=t.value;renderEditor()}
+  if(t.id==="ev-season"){S.evSeason=t.value;renderEvList()}
+  if(t.id==="st-season"){S.statSeason=t.value;renderStats()}
+  if(t.id==="ev-date"){S.draft.date=t.value;persistDraft();renderEditor()}
+  if(t.id==="ev-host"){S.draft.host=t.value;persistDraft()}
+  if(t.id==="ev-cancel"){S.draft.cancelled=t.checked;persistDraft();renderEditor()}
+  if(t.id==="ev-note"){S.draft.note=t.value;persistDraft()}
+  if(t.id==="restore-file")readRestore(t.files&&t.files[0]);
+  if(t.dataset.player){const d=S.draft;d.players=t.checked?[...d.players,t.dataset.player]:d.players.filter(x=>x!==t.dataset.player);persistDraft();renderEditor()}
+  if(t.dataset.game!==undefined){S.draft.games[+t.dataset.game][+t.dataset.place]=t.value;persistDraft();renderEditor()}
 });
-document.addEventListener("input",e=>{if(e.target.closest("#f-settings"))S.settingsDirty=true});
+document.addEventListener("toggle",e=>{const m=e.target.dataset&&e.target.dataset.month;if(m&&!S.evQuery.trim())S.openMonths[m]=e.target.open},true);
+document.addEventListener("input",e=>{
+  if(e.target.closest("#f-settings"))S.settingsDirty=true;
+  if(e.target.id==="ev-q"){S.evQuery=e.target.value;renderEvList()}
+  if(e.target.id==="ev-note"&&S.draft){S.draft.note=e.target.value;persistDraft()}
+});
 document.addEventListener("submit",e=>{
   e.preventDefault();
   if(e.target.id==="f-settings")saveSettings();
@@ -691,6 +917,7 @@ document.addEventListener("submit",e=>{
 });
 
 /* ---------- opstart ---------- */
+S.restored=restoreDraft();
 render();
 startTicking();if(C.running)keepAwake();
 if(!window.supabase){flash("Siden kunne ikke starte. Tjek forbindelsen og genindlæs.",true)}
