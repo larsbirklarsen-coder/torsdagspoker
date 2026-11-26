@@ -44,3 +44,4 @@ Hæv `APP_VERSION` i `index.html` og indholdet af `version.txt` til samme værdi
 - Hver spiller har en fast farve (`FIXED_COLOR`). Gæster er grå.
 - "Alle sæsoner": grafen viser stillingen efter hver sæson, og tidligere spillere og gæster er skjult, til man trykker på knappen.
 - Placeringer i de enkelte spil vises kun for én sæson fra 2027.
+- Statistik har faner (telefonen husker den sidst valgte): **Overblik** (graf og tabel), **Steder** (hjemme/ude, bedste og værste sted med mindst 8 aftener ved alle sæsoner og 3 ved én sæson, alle steder for en valgt spiller), **Form** (seneste 10 aftener) og **Rekorder**. **Placeringer** er en egen fane, når der er valgt en sæson fra 2027. Gæster tæller ikke med i Steder, Form og Rekorder.
