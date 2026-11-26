@@ -164,7 +164,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-26.4";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-26.5";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -294,20 +294,20 @@ function renderEvenings(){
   el.innerHTML=`<div class="row spread"><h2>Aftener</h2>${writable()?`<button class="primary" data-act="new">Ny aften</button>`:""}</div>
     <div class="card" style="gap:10px"><div class="row">
       <select id="ev-season" aria-label="Sæson"><option value="alle" ${S.evSeason==="alle"?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.evSeason?"selected":""}>${esc(sname(y))}</option>`).join("")}</select>
-      <input type="search" id="ev-q" placeholder="Søg: fx hos lars, stein marts, aflyst" value="${esc(S.evQuery)}" style="flex:1 1 200px" autocomplete="off"></div>
+      <input type="search" id="ev-q" placeholder="Søg: fx vært lars, stein marts, aflyst" value="${esc(S.evQuery)}" style="flex:1 1 200px" autocomplete="off"></div>
       <div class="row chips">${F.map(([k,t])=>`<button data-act="evf" data-f="${k}" class="${S.evFilter===k?"on":""}">${t}</button>`).join("")}</div></div>
     <div id="ev-list" style="display:flex;flex-direction:column;gap:12px"></div>`;
   renderEvList();
 }
 function evText(ev){
   const d=new Date(ev.date+"T12:00");
-  return [fmtDate(ev.date),MONTHS[d.getMonth()],ev.season,sname(ev.season),ev.host?"hos "+pname(ev.host):"",ev.host?pname(ev.host):"",
+  return [fmtDate(ev.date),MONTHS[d.getMonth()],ev.season,sname(ev.season),ev.host?"vært "+pname(ev.host):"",ev.host?pname(ev.host):"",
     ...(ev.players||[]).map(pname),ev.cancelled?"aflyst":"spillet",ev.note||"",ev.results?"regnearket":""].join(" ").toLowerCase();
 }
 function renderEvList(){
   const el=$("#ev-list");if(!el)return;
   const q=S.evQuery.trim().toLowerCase().replace(/[:,]/g," ").split(/\s+/).filter(Boolean);
-  /* "hos lars", "vært lars" og "lars vært" søger på værten – ikke på alle aftener, hvor Lars spillede. */
+  /* "vært lars" og "lars vært" (og det gamle "hos lars") søger på værten – ikke på alle aftener, hvor Lars spillede. */
   let hostIds=null,hostName="";
   const hi=q.findIndex(w=>w==="hos"||w==="vært"||w==="vaert");
   if(hi>=0){const at=q[hi+1]?hi+1:(q[hi]!=="hos"&&hi>0?hi-1:-1);
@@ -318,8 +318,8 @@ function renderEvList(){
     &&(!hostIds||hostIds.includes(e.host))
     &&(!q.length||q.every(w=>evText(e).includes(w))));
   const where=S.evSeason==="alle"?"i alle sæsoner":"i "+sname(+S.evSeason);
-  if(!evs.length){el.innerHTML=`<div class="card empty">${hostIds?`Ingen aftener hos ${esc(hostName)} ${esc(where)}.${S.evSeason!=="alle"?" Prøv at vælge Alle sæsoner.":""}`:q.length?"Ingen aftener passer til søgningen.":"Ingen aftener her endnu."}</div>`;return}
-  const summary=hostIds?`<div class="small muted">${evs.length} ${evs.length===1?"aften":"aftener"} hos ${esc(hostName)} ${esc(where)}.</div>`:"";
+  if(!evs.length){el.innerHTML=`<div class="card empty">${hostIds?`Ingen aftener med ${esc(hostName)} som vært ${esc(where)}.${S.evSeason!=="alle"?" Prøv at vælge Alle sæsoner.":""}`:q.length?"Ingen aftener passer til søgningen.":"Ingen aftener her endnu."}</div>`;return}
+  const summary=hostIds?`<div class="small muted">${evs.length} ${evs.length===1?"aften":"aftener"} med ${esc(hostName)} som vært ${esc(where)}.</div>`:"";
   const searching=q.length||hostIds;
   const groups=[];for(const ev of evs){const k=ev.date.slice(0,7);let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,evs:[]});g.evs.push(ev)}
   el.innerHTML=summary+groups.map((g,i)=>{
@@ -334,7 +334,7 @@ function evCard(ev){
   const del=!writable()?"":S.confirmDel===ev.id
     ?`<div class="row"><span class="small">Slet aftenen permanent?</span><button class="danger" data-act="del-yes" data-id="${esc(ev.id)}">Ja, slet</button><button data-act="del-no">Fortryd</button></div>`
     :`<div class="row">${ev.results?"":`<button data-act="edit" data-id="${esc(ev.id)}">Ret</button>`}<button class="danger" data-act="del" data-id="${esc(ev.id)}">Slet</button></div>`;
-  const head=`<div class="ev-head"><h3>${esc(fmtDate(ev.date))}${ev.host?` · hos ${esc(pname(ev.host))}`:""}</h3>`;
+  const head=`<div class="ev-head"><h3>${esc(fmtDate(ev.date))}${ev.host?` · vært ${esc(pname(ev.host))}`:""}</h3>`;
   if(ev.cancelled)return `<article class="card cancelled">${head}<span class="pill">Aflyst</span></div>${ev.note&&ev.note!=="Aflyst"?`<div class="small">${esc(ev.note)}</div>`:""}${del}</article>`;
   const games=(ev.games||[]).map((g,i)=>`<div class="small"><b>Spil ${i+1}:</b> ${g.map((p,j)=>p?`${j+1}. ${esc(pname(p))}`:"").filter(Boolean).join(" · ")}</div>`).join("");
   const pot=(ev.players||[]).length*(ev.buyIn||0);
