@@ -171,7 +171,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-26.6";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-26.7";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -669,17 +669,32 @@ async function saveDraft(){
 }
 
 /* ---------- Regler og spillere ---------- */
+/* Præmier aflæst i de gamle regnskaber 2011–2025 (150 kr. pr. spil). Vises kun som forslag. */
+const PRIZE_HINTS={7:[500,350,200],8:[500,350,200,150]};
+const parsePrizes=s=>String(s||"").split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(x=>x>0);
+/* Felter fra mindste antal til mindst 10 – og altid ét tomt felt efter det højeste udfyldte. */
+function prizeCounts(c){
+  const hi=Math.max(0,...Object.keys(c.prizes||{}).map(Number).filter(n=>(c.prizes[n]||[]).length));
+  const out=[];for(let n=c.minPlayers;n<=Math.min(30,Math.max(10,hi+1));n++)out.push(n);return out;
+}
+const prizeStatus=(p,pot)=>{if(!p.length)return "";const sum=p.reduce((a,b)=>a+b,0);return sum===pot?`<span class="gain">Går op</span>`:`<span class="loss">Summen er ${kr(sum)}, puljen er ${kr(pot)}</span>`};
+function livePrizes(){
+  const buy=Math.max(0,parseInt(($("#s-buyin")||{}).value,10)||0);
+  document.querySelectorAll("[data-prize]").forEach(i=>{const n=+i.dataset.prize,pot=n*buy;
+    const pp=$("#pzp-"+n),ps=$("#pzs-"+n);if(pp)pp.textContent=kr(pot);if(ps)ps.innerHTML=prizeStatus(parsePrizes(i.value),pot)});
+}
 function renderRules(){
   const el=$("#sec-regler");
   if(S.settingsDirty)return;
   if(!S.loaded){el.innerHTML=`<div class="card empty">Henter regler …</div>`;return}
   const c=cfg(),w=writable();
-  const counts=[];for(let n=c.minPlayers;n<=c.maxPlayers;n++)counts.push(n);
+  const counts=prizeCounts(c),defined=Object.keys(c.prizes).map(Number).filter(n=>(c.prizes[n]||[]).length).sort((a,b)=>a-b);
   let h=`<h2>Regler og spillere</h2>`;
   if(!w){
     h+=`<div class="card"><div>${c.games} sit &amp; go pr. aften · ${kr(c.buyIn)} pr. spil (${kr(c.buyIn*c.games)} i alt) · mindst ${c.minPlayers} spillere</div>
       <div class="tbl"><table><thead><tr><th>Spillere</th><th class="num">Pulje pr. spil</th><th>Præmier</th></tr></thead><tbody>
-      ${counts.map(n=>`<tr><td>${n}</td><td class="num">${kr(n*c.buyIn)}</td><td>${(c.prizes[String(n)]||[]).map(kr).join(" / ")||"–"}</td></tr>`).join("")}</tbody></table></div></div>
+      ${defined.map(n=>`<tr><td>${n}</td><td class="num">${kr(n*c.buyIn)}</td><td>${c.prizes[String(n)].map(kr).join(" / ")}</td></tr>`).join("")}</tbody></table></div>
+      ${defined.length?`<div class="small muted">Præmier er fastlagt for ${defined[0]}–${defined[defined.length-1]} spillere.</div>`:""}</div>
       <div class="card"><h3>Spillere</h3><div>${S.players.filter(p=>p.active!==false).map(label).join(", ")||"Ingen endnu"}</div></div>
       <div class="card"><h3>Blind-ur</h3><div>${c.blinds.minutes} min pr. niveau · ${(c.blinds.levels||[]).map(lvlText).join(" → ")}</div></div>`+backupCard();
     el.innerHTML=h;return;
@@ -687,12 +702,12 @@ function renderRules(){
   h+=`<form class="card" id="f-settings"><h3>Spilleregler</h3><div class="row">
     <label for="s-buyin">Indskud pr. spil (kr.)<input type="number" id="s-buyin" min="0" step="10" value="${c.buyIn}"></label>
     <label for="s-games">Spil pr. aften<input type="number" id="s-games" min="1" max="6" value="${c.games}"></label>
-    <label for="s-min">Mindst antal spillere<input type="number" id="s-min" min="2" max="20" value="${c.minPlayers}"></label>
-    <label for="s-max">Højst antal spillere<input type="number" id="s-max" min="2" max="20" value="${c.maxPlayers}"></label></div>
-    <div><h3>Præmier pr. spil</h3><div class="small muted">Skriv beløbene for 1., 2., 3. plads osv., adskilt af komma. Tom linje = det antal spillere er ikke tilladt.</div></div>
-    ${counts.map(n=>{const p=c.prizes[String(n)]||[],sum=p.reduce((a,b)=>a+b,0),pot=n*c.buyIn;
-      return `<div class="row"><label for="pz-${n}" style="flex:1 1 220px">${n} spillere · pulje ${kr(pot)}<input id="pz-${n}" data-prize="${n}" value="${p.join(", ")}" placeholder="fx 450, 300" inputmode="numeric"></label>
-      <span class="small ${p.length&&sum!==pot?"loss":"muted"}">${p.length?(sum===pot?"Går op":`Summen er ${kr(sum)}`):""}</span></div>`}).join("")}
+    <label for="s-min">Mindst antal spillere<input type="number" id="s-min" min="2" max="20" value="${c.minPlayers}"></label></div>
+    <div><h3>Præmier pr. spil</h3><div class="small muted">Skriv beløbene for 1., 2., 3. plads osv., adskilt af komma. Tomt felt = det antal spillere kan ikke tastes endnu. Udfylder du det nederste felt, kommer der et felt mere, når du har gemt.</div></div>
+    ${counts.map(n=>{const p=c.prizes[String(n)]||[],hint=c.buyIn===150&&PRIZE_HINTS[n];
+      return `<div class="row"><label for="pz-${n}" style="flex:1 1 220px"><span>${n} spillere · pulje <span id="pzp-${n}">${kr(n*c.buyIn)}</span></span><input id="pz-${n}" data-prize="${n}" value="${p.join(", ")}" placeholder="${hint?"fx "+hint.join(", "):"tomt = ikke tilladt"}" inputmode="numeric"></label>
+      <span class="small" id="pzs-${n}">${prizeStatus(p,n*c.buyIn)}</span>${hint&&!p.length?`<button type="button" data-act="pz-hint" data-n="${n}">Brug forslag</button>`:""}</div>`}).join("")}
+    ${counts.some(n=>c.buyIn===150&&PRIZE_HINTS[n]&&!(c.prizes[String(n)]||[]).length)?`<div class="small muted">Forslagene er regnet ud fra de gamle regnskaber 2011–2025. 7 spillere passer på alle 59 aftener. 8 spillere bygger kun på 8 aftener og er usikkert.</div>`:""}
     <div class="small muted">Ændringer gælder nye aftener. Gemte aftener beholder de præmier, de blev spillet med.</div>
     <div><h3>Blind-ur</h3><div class="small muted">Ét niveau pr. linje: small/big, fx <b>10/20</b>. Med ante: <b>100/200/25</b>. Pause: <b>pause 10</b> (minutter).</div></div>
     <div class="row"><label for="s-bmin">Minutter pr. niveau<input type="number" id="s-bmin" min="1" max="120" value="${c.blinds.minutes}"></label>
@@ -722,11 +737,12 @@ function renderRules(){
 }
 async function saveSettings(){
   const num=id=>Math.max(0,parseInt($(id).value,10)||0);
-  const c={buyIn:num("#s-buyin"),games:Math.max(1,num("#s-games")),minPlayers:Math.max(2,num("#s-min")),maxPlayers:Math.max(2,num("#s-max")),prizes:{}};
-  if(c.maxPlayers<c.minPlayers)c.maxPlayers=c.minPlayers;
+  const c={buyIn:num("#s-buyin"),games:Math.max(1,num("#s-games")),minPlayers:Math.max(2,num("#s-min")),prizes:{}};
   Object.assign(c.prizes,cfg().prizes);
-  document.querySelectorAll("[data-prize]").forEach(i=>{const v=i.value.split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(x=>x>0);
+  document.querySelectorAll("[data-prize]").forEach(i=>{const v=parsePrizes(i.value);
     if(v.length)c.prizes[i.dataset.prize]=v;else delete c.prizes[i.dataset.prize]});
+  /* Højeste antal spillere = det højeste antal, der har præmier. */
+  c.maxPlayers=Math.max(c.minPlayers,...Object.keys(c.prizes).map(Number).filter(n=>c.prizes[n].length));
   const lv=parseLevels($("#s-levels").value);
   if(!lv){flash("Blindniveauerne kan ikke læses. Skriv ét niveau pr. linje som 10/20, eller 'pause 10'.",true);return}
   c.blinds={minutes:Math.max(1,num("#s-bmin")),stack:$("#s-stack").value.trim(),levels:lv};
@@ -1035,6 +1051,7 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(a.startsWith("ck-")){clockAct(a);return}
   if(a==="season"){S.season=+b.dataset.y;render();window.scrollTo(0,0)}
+  if(a==="pz-hint"){const n=b.dataset.n,i=$("#pz-"+n);if(i&&PRIZE_HINTS[n]){i.value=PRIZE_HINTS[n].join(", ");S.settingsDirty=true;b.remove();livePrizes()}return}
   if(a==="st-view"){S.statView=b.dataset.v;try{localStorage.setItem("tp-statview",S.statView)}catch{}renderStats();return}
   if(a==="st-player"){S.statPlayer=id;renderStats();return}
   if(a==="st-old"){S.statShowOld=!S.statShowOld;S.streakInfo=null;renderStats();return}
@@ -1088,6 +1105,7 @@ document.addEventListener("change",e=>{
 document.addEventListener("toggle",e=>{const m=e.target.dataset&&e.target.dataset.month;if(m&&!S.evQuery.trim())S.openMonths[m]=e.target.open},true);
 document.addEventListener("input",e=>{
   if(e.target.closest("#f-settings"))S.settingsDirty=true;
+  if(e.target.dataset&&e.target.dataset.prize||e.target.id==="s-buyin")livePrizes();
   if(e.target.id==="ev-q"){S.evQuery=e.target.value;renderEvList()}
   if(e.target.id==="ev-note"&&S.draft){S.draft.note=e.target.value;persistDraft()}
 });
