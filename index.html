@@ -20,14 +20,16 @@
   --accent:#0f6a45; --accent-ink:#ffffff; --gain:#12784a; --loss:#b3261e; --gold:#a8760c; --warn-bg:#fdf3dc; --warn-ink:#7a5408;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --s1:#1f6feb; --s2:#d1470f; --s3:#12784a; --s4:#a8760c; --s5:#8a3ffc; --s6:#c4166c; --s7:#0f8a9d; --s8:#5b6a62;
+  --s1:#1f6feb; --s2:#d1470f; --s3:#12784a; --s4:#a8760c; --s5:#8a3ffc; --s6:#c4166c; --s7:#0f8a9d; --s8:#8a958f;
+  --s9:#7a4a1e; --s10:#d62f2f; --s11:#6b8e23; --s12:#2f3f9e; --s13:#b05fa0; --s14:#3a7d7a; --s15:#9a6a00;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0c1310; --surface:#141e19; --ink:#e5ede8; --muted:#92a399; --line:#25332b;
   --band:#0b3324; --band-ink:#eef5f0; --band-muted:#8fb5a1;
   --accent:#43b883; --accent-ink:#06150e; --gain:#4cc28b; --loss:#f07a70; --gold:#e0b04a; --warn-bg:#33270d; --warn-ink:#f1cf7f;
-  --s1:#6ea8ff; --s2:#ff8a5c; --s3:#4cc28b; --s4:#e0b04a; --s5:#b28dff; --s6:#ff7eb6; --s7:#4fd1e0; --s8:#a7b5ad;
+  --s1:#6ea8ff; --s2:#ff8a5c; --s3:#4cc28b; --s4:#e0b04a; --s5:#b28dff; --s6:#ff7eb6; --s7:#4fd1e0; --s8:#7d8b84;
+  --s9:#d09a6a; --s10:#ff6b6b; --s11:#a8cc5c; --s12:#8f9dff; --s13:#e29bd4; --s14:#7fcfc9; --s15:#f0c040;
   color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -97,6 +99,8 @@ details.month>summary>span:first-child{flex:1}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+i.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.cellbtn{padding:2px 9px;font-variant-numeric:tabular-nums;border-radius:99px;font-weight:600}
 .chart{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:17px;font-family:var(--body)}
 .chart .grid{stroke:var(--line);stroke-width:1}
@@ -160,14 +164,14 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-26.1";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-26.2";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
     levels:[[10,20],[20,40],[30,60],[50,100],[75,150],[100,200],[200,400],[400,800],[800,1600]].map(([sb,bb])=>({sb,bb}))}};
 const S={sb:null,session:null,admins:[],confirmAdmin:null,settings:null,players:[],evenings:[],canWrite:false,loaded:false,
   season:null,draft:null,editingId:null,confirmDel:null,settingsDirty:false,busy:false,showLogin:false,loginSent:false,
-  raw:[],evSeason:null,evQuery:"",evFilter:"alle",openMonths:{},statSeason:null,restored:false,restore:null};
+  raw:[],evSeason:null,evQuery:"",evFilter:"alle",openMonths:{},statSeason:null,statShowOld:false,streakInfo:null,restored:false,restore:null};
 
 /* Påbegyndt aften gemmes i telefonen ved hver ændring, så den overlever genindlæsning og opdateringer. */
 const DK="tp-draft";
@@ -329,8 +333,24 @@ function evCard(ev){
 }
 
 /* ---------- Statistik ---------- */
-const COLORS=["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+/* Hver spiller har sin egen faste farve i alle grafer og alle år. Gæster er grå. */
+const FIXED_COLOR={allan:1,mikael:2,stein:3,ole:4,mikkel:5,lars:6,peter:7,thomas:9,rode:10,casper:11};
+const EXTRA_COLORS=[12,13,14,15];
+function pcolor(id){
+  if(isGuest(id))return "var(--s8)";
+  if(FIXED_COLOR[id])return `var(--s${FIXED_COLOR[id]})`;
+  const others=S.players.filter(p=>!p.guest&&!FIXED_COLOR[p.id]).map(p=>p.id).sort();
+  return `var(--s${EXTRA_COLORS[Math.max(0,others.indexOf(id))%EXTRA_COLORS.length]})`;
+}
 const pct=x=>Math.round(x*100)+" %";
+/* Længste række af aftener i træk i plus (n>0) eller minus (n<0). 0 kr. bryder rækken; aftener man ikke var med, springes over. */
+function streak(p,test,evs){
+  let best={len:0},cur=0,start=0;
+  p.nets.forEach((n,j)=>{if(test(n)){if(!cur)start=j;cur++;if(cur>best.len)best={len:cur,from:evs[p.idx[start]].date,to:evs[p.idx[j]].date}}else cur=0});
+  return best;
+}
+const fmtShort=d=>new Date(d+"T12:00").toLocaleDateString("da-DK",{day:"numeric",month:"short",year:"numeric"});
+const shortSeason=y=>sname(y).replace(/^20(\d\d)-(\d\d).*$/,"$1-$2").replace(/^20(\d\d)$/,"$1");
 function renderStats(){
   const el=$("#sec-statistik");
   if(!S.loaded){el.innerHTML=`<div class="card empty">Henter statistik …</div>`;return}
@@ -344,35 +364,56 @@ function renderStats(){
   const P={};
   evs.forEach((ev,i)=>evResult(ev).forEach(r=>{const p=P[r.id]||(P[r.id]={id:r.id,nets:[],idx:[],hosted:0});p.nets.push(r.net);p.idx.push(i)}));
   evs.forEach(ev=>{if(ev.host&&P[ev.host])P[ev.host].hosted++});
-  const rows=Object.values(P).map(p=>{let st=0,best=0;p.nets.forEach(n=>{st=n>0?st+1:0;best=Math.max(best,st)});
+  /* Under "Alle sæsoner" skjules tidligere spillere og gæster, til man beder om dem. */
+  const former=id=>{const p=S.players.find(x=>x.id===id);return !p||p.guest||p.active===false};
+  const hidden=all?Object.keys(P).filter(former):[];
+  const shown=id=>!all||S.statShowOld||!hidden.includes(id);
+  const rows=Object.values(P).filter(p=>shown(p.id)).map(p=>{
     const sum=p.nets.reduce((a,b)=>a+b,0);return {...p,n:p.nets.length,sum,plus:p.nets.filter(n=>n>0).length/p.nets.length,
-      max:Math.max(...p.nets),min:Math.min(...p.nets),streak:best}}).sort((a,b)=>b.sum-a.sum);
-  rows.forEach((r,i)=>r.color=`var(${COLORS[i%COLORS.length]})`);
+      max:Math.max(...p.nets),min:Math.min(...p.nets),up:streak(p,n=>n>0,evs),down:streak(p,n=>n<0,evs),color:pcolor(p.id)}}).sort((a,b)=>b.sum-a.sum);
   h+=`<div class="row" style="gap:8px"><span class="pill">${evs.length} spillede aftener</span>${cancelled?`<span class="pill">${cancelled} aflyst</span>`:""}<span class="pill">${fmtDate(evs[0].date)} – ${fmtDate(evs[evs.length-1].date)}</span></div>`;
-  h+=`<div class="card"><h3>Fortjeneste over tid</h3>${chart(evs,rows)}
-    <div class="legend">${rows.map(r=>`<span><i style="background:${r.color}"></i>${esc(pname(r.id))}</span>`).join("")}</div></div>`;
-  h+=`<div class="card"><h3>Aftener</h3><div class="tbl"><table><thead><tr><th>Spiller</th><th class="num">Aftener</th><th class="num">I plus</th><th class="num">Bedste</th><th class="num">Værste</th><th class="num" title="Flest plus-aftener i træk">Stime</th><th class="num">Vært</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${esc(pname(r.id))}${isGuest(r.id)?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num">${pct(r.plus)}</td><td class="num gain">${net(r.max)}</td><td class="num loss">${net(r.min)}</td><td class="num">${r.streak}</td><td class="num">${r.hosted}</td></tr>`).join("")}
-    </tbody></table></div><div class="small muted">I plus = andel af aftenerne med gevinst. Stime = flest plus-aftener i træk. Vært = antal aftener som vært.</div></div>`;
-  h+=placeStats(evs);
+  if(hidden.length)h+=`<div class="row chips"><button data-act="st-old" class="${S.statShowOld?"on":""}">${S.statShowOld?"Skjul":"Vis"} tidligere spillere og gæster (${hidden.length})</button></div>`;
+  /* Graf: pr. aften i én sæson, pr. sæson under "Alle sæsoner". */
+  let series,n,xlab,title;
+  if(all){
+    const ys=[...new Set(evs.map(e=>e.season))].sort((a,b)=>a-b);n=ys.length;
+    series=rows.map(r=>{let c=0;const pts=[0];ys.forEach(y=>{r.nets.forEach((v,j)=>{if(evs[r.idx[j]].season===y)c+=v});pts.push(c)});return {color:r.color,pts}});
+    const every=n>12?3:n>6?2:1;
+    xlab=i=>(i===n||(n-i)%every===0)?shortSeason(ys[i-1]):null;
+    title="Samlet fortjeneste efter hver sæson";
+  }else{
+    n=evs.length;series=rows.map(r=>{let c=0,j=0;const pts=[0];evs.forEach((ev,i)=>{if(r.idx[j]===i){c+=r.nets[j];j++}pts.push(c)});return {color:r.color,pts}});
+    const at=[1,Math.ceil(n/2),n];xlab=i=>at.includes(i)?(d=>`${d.getDate()}. ${MONTHS[d.getMonth()].slice(0,3)}`)(new Date(evs[i-1].date+"T12:00")):null;
+    title="Fortjeneste over tid";
+  }
+  h+=`<div class="card"><h3>${title}</h3>${chart(n,xlab,series,all)}
+    <div class="legend">${rows.map(r=>`<span><i style="background:${r.color}"></i>${esc(pname(r.id))}</span>`).join("")}</div>
+    ${all?`<div class="small muted">Hvert punkt er stillingen ved slutningen af en sæson (${esc(sname(evs[0].season))} til ${esc(sname(evs[evs.length-1].season))}). Vælg en sæson for at se de enkelte aftener.</div>`:""}</div>`;
+  const info=S.streakInfo&&rows.find(r=>r.id===S.streakInfo.id);
+  const sInfo=info?(k=>{const x=info[k];return x.len?`<div class="notice">${esc(pname(info.id))}: ${x.len} ${x.len===1?"aften":"aftener"} i træk i ${k==="up"?"plus":"minus"}${x.len>1?`, fra ${fmtShort(x.from)} til ${fmtShort(x.to)}`:`, ${fmtShort(x.from)}`}.</div>`:""})(S.streakInfo.k):"";
+  const sb=(r,k)=>r[k].len?`<button class="cellbtn" data-act="streak" data-id="${esc(r.id)}" data-k="${k}">${r[k].len}</button>`:"0";
+  h+=`<div class="card"><h3>Aftener</h3><div class="tbl"><table class="tight"><thead><tr><th>Spiller</th><th class="num">Aftener</th><th class="num">I plus</th><th class="num hide-sm">Bedste</th><th class="num hide-sm">Værste</th><th class="num">Plus<br>i træk</th><th class="num">Minus<br>i træk</th><th class="num hide-sm">Vært</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><i class="dot" style="background:${r.color}"></i>${esc(pname(r.id))}${isGuest(r.id)?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num">${pct(r.plus)}</td><td class="num gain hide-sm">${net(r.max)}</td><td class="num loss hide-sm">${net(r.min)}</td><td class="num">${sb(r,"up")}</td><td class="num">${sb(r,"down")}</td><td class="num hide-sm">${r.hosted}</td></tr>`).join("")}
+    </tbody></table></div>${sInfo}<div class="small muted">I plus = andel af aftenerne med gevinst. Plus i træk = flest aftener i træk med gevinst. Minus i træk = flest aftener i træk med tab. En aften med 0 kr. bryder rækken, og aftener man ikke var med, springes over. Tryk på tallet for at se hvornår.<span class="hide-sm"> Vært = antal aftener som vært.</span></div></div>`;
+  /* Placeringer i de enkelte spil tastes fuldt fra 2027 og vises kun for én sæson fra 2027. */
+  if(!all&&+S.statSeason>=2027)h+=placeStats(evs);
   el.innerHTML=h;
 }
-function chart(evs,rows){
-  const W=700,H=300,L=70,R=14,T=14,B=34,n=evs.length;
-  const series=rows.map(r=>{let c=0,j=0;const pts=[[0,0]];evs.forEach((ev,i)=>{if(r.idx[j]===i){c+=r.nets[j];j++}pts.push([i+1,c])});return {r,pts}});
-  let lo=0,hi=0;series.forEach(s=>s.pts.forEach(([,v])=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));
+function chart(n,xlab,series,dots){
+  const W=700,H=300,L=70,R=14,T=14,B=34;
+  let lo=0,hi=0;series.forEach(s=>s.pts.forEach(v=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));
   const step=niceStep((hi-lo)/4||100);lo=Math.floor(lo/step)*step;hi=Math.ceil(hi/step)*step;if(hi===lo)hi=lo+step;
   const x=i=>L+(W-L-R)*i/Math.max(1,n),y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
   let g="";for(let v=lo;v<=hi+0.001;v+=step)g+=`<line class="${v===0?"zero":"grid"}" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+6}" text-anchor="end">${nf.format(v)}</text>`;
-  const lab=[0,Math.floor(n/2),n-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>{const d=new Date(evs[i].date+"T12:00");return `<text x="${x(i+1)}" y="${H-6}" text-anchor="${i===0?"start":i===n-1?"end":"middle"}">${d.getDate()}. ${MONTHS[d.getMonth()].slice(0,3)} ${String(d.getFullYear()).slice(2)}</text>`}).join("");
-  const lines=series.slice().reverse().map(s=>`<polyline fill="none" stroke="${s.r.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${s.pts.map(([i,v])=>x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/>
-    <circle cx="${x(n)}" cy="${y(s.pts[s.pts.length-1][1])}" r="3.5" fill="${s.r.color}"/>`).join("");
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Samlet fortjeneste pr. spiller over aftenerne">${g}${lab}${lines}</svg>`;
+  let lab="";for(let i=1;i<=n;i++){const t=xlab(i);if(t!=null)lab+=`<text x="${x(i)}" y="${H-6}" text-anchor="${i===n?"end":(!dots&&i===1)?"start":"middle"}">${esc(t)}</text>`}
+  const lines=series.slice().reverse().map(s=>`<polyline fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${s.pts.map((v,i)=>x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/>
+    ${dots?s.pts.slice(1).map((v,i)=>`<circle cx="${x(i+1).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.6" fill="${s.color}"/>`).join(""):`<circle cx="${x(n)}" cy="${y(s.pts[n])}" r="3.5" fill="${s.color}"/>`}`).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Samlet fortjeneste pr. spiller">${g}${lab}${lines}</svg>`;
 }
 function niceStep(raw){const p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
 function placeStats(evs){
   const withG=evs.filter(e=>e.games&&e.games.length);
-  if(!withG.length)return `<div class="card"><h3>Placeringer</h3><div class="muted">Placeringer registreres fra 19. nov. 2026 (præmiepladser) og fuldt fra 2027. Aftenerne fra regnearket har kun netto. Sejre, fordeling og indbyrdes opgør dukker op her, når der er tastet aftener med placeringer.</div></div>`;
+  if(!withG.length)return `<div class="card"><h3>Placeringer</h3><div class="muted">Sejre, fordeling og indbyrdes opgør dukker op her, når der er tastet aftener med placeringer.</div></div>`;
   const P={},maxN=Math.max(...withG.map(e=>e.players.length));const H2H={};
   withG.forEach(ev=>ev.games.forEach(g=>{
     const npr=(ev.prizes||[]).length,full=g.filter(Boolean).length===ev.players.length;
@@ -892,6 +933,8 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(a.startsWith("ck-")){clockAct(a);return}
   if(a==="season"){S.season=+b.dataset.y;render();window.scrollTo(0,0)}
+  if(a==="st-old"){S.statShowOld=!S.statShowOld;S.streakInfo=null;renderStats();return}
+  if(a==="streak"){const k=b.dataset.k;S.streakInfo=S.streakInfo&&S.streakInfo.id===id&&S.streakInfo.k===k?null:{id,k};renderStats();return}
   if(a==="new"){if(!hasSavedDraft()||S.editingId)clearDraft();location.hash="#ny"}
   if(a==="edit"){const ev=S.evenings.find(x=>x.id===id);S.editingId=id;
     S.draft={date:ev.date,host:ev.host||"",players:[...ev.players],games:(ev.games||[]).map(g=>[...g]),cancelled:!!ev.cancelled,note:ev.note||""};
@@ -929,7 +972,7 @@ document.addEventListener("change",e=>{
   if(t.id==="ck-file")pickOwn(t.files&&t.files[0]);
   if(t.id==="ck-vol"){SND.vol=+t.value;saveSnd();unlockAudio();alarmWarn()}
   if(t.id==="ev-season"){S.evSeason=t.value;renderEvList()}
-  if(t.id==="st-season"){S.statSeason=t.value;renderStats()}
+  if(t.id==="st-season"){S.statSeason=t.value;S.streakInfo=null;renderStats()}
   if(t.id==="ev-date"){S.draft.date=t.value;persistDraft();renderEditor()}
   if(t.id==="ev-host"){S.draft.host=t.value;persistDraft()}
   if(t.id==="ev-cancel"){S.draft.cancelled=t.checked;persistDraft();renderEditor()}

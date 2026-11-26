@@ -38,3 +38,9 @@ Hæv `APP_VERSION` i `index.html` og indholdet af `version.txt` til samme værdi
 - Indskud: 3 spil à 100 kr. til og med 2010-11, derefter 2 spil à 150 kr.
 - "Ulrik" i 2008-09 er Røde. Rettede datoer: 2013 uge 10 = 6/3-2013 og 2021 uge 49 = 9/12-2021.
 - Order of Merit → "Alle år": samlet stilling og antal 1.-, 2.- og 3.-pladser i afsluttede sæsoner. Står to lige, går den med flest aftener foran.
+
+## Statistik (26. nov. 2026)
+- "Plus i træk" og "Minus i træk": flest aftener i træk med gevinst eller tab. En aften med 0 kr. bryder rækken, og aftener man ikke var med, springes over. Tryk på tallet for at se datoerne.
+- Hver spiller har en fast farve (`FIXED_COLOR`). Gæster er grå.
+- "Alle sæsoner": grafen viser stillingen efter hver sæson, og tidligere spillere og gæster er skjult, til man trykker på knappen.
+- Placeringer i de enkelte spil vises kun for én sæson fra 2027.
