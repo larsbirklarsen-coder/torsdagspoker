@@ -30,3 +30,11 @@ Hæv `APP_VERSION` i `index.html` og indholdet af `version.txt` til samme værdi
 - Fra 2027 skal alle placeringer tastes; i 2026 kun præmiepladserne.
 - En påbegyndt aften gemmes i telefonen (`localStorage` "tp-draft") og hentes frem efter genindlæsning. Appen opdaterer sig ikke selv, mens der ligger en kladde.
 - Backup: .csv til Google Sheets og fuld .json fra "Regler og spillere". Automatisk natlig backup: `backup/google-sheets-backup.gs` (Apps Script i et Google-regneark, kør `installer`).
+
+## Gamle sæsoner 2008-09 til 2025 (26. nov. 2026)
+- Mikaels regneark ligger i `regnskaber/` (kun lokalt, står i `.gitignore`). `regnskaber/04_historik.sql` lægger 437 aftener ind (23 aflyste) og opretter Peter, Thomas, Røde og Casper som inaktive samt "Gæster" (alle gæster samlet, kun netto).
+- Kontrol: alle aftener går i nul, og hver sæson stemmer med "Pokerregnskab total gevinster-tab.xls".
+- Sæsonen gemmes som startåret: 2008 = 2008-09, 2009 = 2009-10, 2010 = 2010-11, 2011 = 2011-12 lang sæson (navnene står i `SEASON_NAMES`).
+- Indskud: 3 spil à 100 kr. til og med 2010-11, derefter 2 spil à 150 kr.
+- "Ulrik" i 2008-09 er Røde. Rettede datoer: 2013 uge 10 = 6/3-2013 og 2021 uge 49 = 9/12-2021.
+- Order of Merit → "Alle år": samlet stilling og antal 1.-, 2.- og 3.-pladser i afsluttede sæsoner. Står to lige, går den med flest aftener foran.

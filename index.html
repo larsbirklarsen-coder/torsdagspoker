@@ -82,7 +82,7 @@ button:disabled{opacity:.55;cursor:default}
 .game{border:1px dashed var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .ev-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
 .empty{text-align:center;padding:28px 16px;color:var(--muted)}
-@media (max-width:520px){.hide-sm{display:none}}
+@media (max-width:520px){.hide-sm{display:none}.tight td,.tight th{padding-inline:5px}}
 details.month{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 details.month>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 16px;font-weight:600}
 details.month>summary::-webkit-details-marker{display:none}
@@ -160,7 +160,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-20.2";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-26.1";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -195,9 +195,14 @@ const isGuest=id=>!!(S.players.find(p=>p.id===id)||{}).guest;
 const label=p=>esc(p.name)+(p.guest?" (gæst)":"");
 const newId=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
 
+/* De første sæsoner gik fra august til august; sæsonen gemmes som startåret. */
+const SEASON_NAMES={2008:"2008-09",2009:"2009-10",2010:"2010-11",2011:"2011-12 lang sæson"};
+const sname=y=>SEASON_NAMES[y]||String(y);
+const krx=v=>v==null?"–":kr(v);   // ukendt beløb vises som –
 function evResult(ev){
   const paid=(ev.buyIn||0)*(ev.gameCount||(ev.games||[]).length);
-  if(ev.results)return Object.entries(ev.results).map(([id,n])=>({id,paid,won:n+paid,wins:0,net:n})).sort((a,b)=>b.net-a.net);
+  /* Regnearket har gæsterne samlet på én linje (kan være flere gæster), så for dem kendes kun netto. */
+  if(ev.results)return Object.entries(ev.results).map(([id,n])=>isGuest(id)?{id,paid:null,won:null,wins:0,net:n}:{id,paid,won:n+paid,wins:0,net:n}).sort((a,b)=>b.net-a.net);
   const m={};(ev.players||[]).forEach(p=>m[p]={id:p,paid,won:0,wins:0});
   (ev.games||[]).forEach(g=>g.forEach((p,i)=>{if(m[p]){m[p].won+=(ev.prizes||[])[i]||0;if(i===0)m[p].wins++}}));
   return Object.values(m).map(r=>({...r,net:r.won-r.paid})).sort((a,b)=>b.net-a.net||b.wins-a.wins);
@@ -209,22 +214,55 @@ function merit(season){
   const t={};
   S.evenings.filter(e=>e.season===season&&played(e)).forEach(ev=>evResult(ev).forEach(r=>{
     const a=t[r.id]||(t[r.id]={id:r.id,n:0,paid:0,won:0,wins:0,net:0});
-    a.n++;a.paid+=r.paid;a.won+=r.won;a.wins+=r.wins;a.net+=r.net;}));
-  return Object.values(t).sort((a,b)=>b.net-a.net||b.wins-a.wins);
+    a.n++;a.wins+=r.wins;a.net+=r.net;
+    if(r.paid==null||a.paid==null){a.paid=null;a.won=null}else{a.paid+=r.paid;a.won+=r.won}}));
+  /* Lige: flest sejre, derefter flest aftener (som i det gamle regneark). */
+  return Object.values(t).sort((a,b)=>b.net-a.net||b.wins-a.wins||b.n-a.n);
 }
+/* Sæsonens top 3 blandt faste spillere (gæster får ingen placering). */
+const podium=season=>merit(season).filter(r=>!isGuest(r.id)).slice(0,3);
+/* Samlet over alle år + antal 1./2./3.-pladser i afsluttede sæsoner. */
+function allTime(){
+  const t={},cur=new Date().getFullYear();
+  seasons().forEach(y=>{merit(y).forEach(r=>{const a=t[r.id]||(t[r.id]={id:r.id,n:0,net:0,seasons:0,places:[0,0,0]});
+    a.n+=r.n;a.net+=r.net;a.seasons++});
+    if(y<cur)podium(y).forEach((r,i)=>t[r.id].places[i]++)});
+  return Object.values(t).sort((a,b)=>b.net-a.net||b.places[0]-a.places[0]||b.n-a.n);
+}
+function renderAllTime(el,ss){
+  const cur=new Date().getFullYear(),rows=allTime(),done=ss.filter(y=>y<cur);
+  const evs=S.evenings.filter(played),first=evs[evs.length-1];
+  let h=`<div class="row spread"><h2>Order of Merit · alle år</h2>${seasonSelect(ss)}</div>`;
+  if(!rows.length){el.innerHTML=h+`<div class="card empty">Ingen aftener endnu.</div>`;return}
+  const lead=rows.find(r=>!isGuest(r.id));
+  if(lead)h+=`<div class="card"><div class="leader"><div class="chip" aria-hidden="true"></div><div>
+    <div class="small muted">Mest i plus efter ${nf.format(evs.length)} aftener${first?` siden ${esc(fmtDate(first.date))}`:""}</div>
+    <div class="big">${esc(pname(lead.id))}</div>
+    <div class="${netCls(lead.net)}">${net(lead.net)}</div></div></div></div>`;
+  let rank=0;
+  h+=`<div class="card"><div class="tbl"><table class="tight"><thead><tr><th></th><th>Spiller</th><th class="num hide-sm">Sæsoner</th><th class="num">Aftener</th><th class="num">I alt</th><th class="num hide-sm">Gns.</th><th class="num" title="Antal 1.-, 2.- og 3.-pladser">1·2·3</th></tr></thead><tbody>
+  ${rows.map(r=>{const g=isGuest(r.id);if(!g)rank++;const pl=g?"–":r.places.join(" · ");
+    return `<tr class="${!g&&r===lead?"lead":""}"><td class="rank">${g?"–":rank}</td><td>${esc(pname(r.id))}${g?` <span class="pill">Gæst</span>`:""}</td><td class="num hide-sm">${r.seasons}</td><td class="num">${r.n}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td><td class="num muted hide-sm">${(r.net/r.n).toLocaleString("da-DK",{maximumFractionDigits:0})}</td><td class="num">${pl}</td></tr>`}).join("")}
+  </tbody></table></div><div class="small muted">I alt = samlet fortjeneste i alle sæsoner. 1·2·3 = antal gange spilleren er sluttet som nr. 1, 2 og 3 i en afsluttet sæson (${done.length} sæsoner). Står to lige, går den med flest aftener foran.</div></div>`;
+  h+=`<div class="card"><h3>Årets top 3</h3><div class="tbl"><table class="tight"><thead><tr><th>Sæson</th><th>Vinder</th><th>2.</th><th>3.</th></tr></thead><tbody>
+  ${ss.map(y=>{const p=podium(y);if(!p.length)return "";const c=i=>p[i]?`${esc(pname(p[i].id))}<div class="small muted" style="font-weight:400">${net(p[i].net)}</div>`:"";
+    return `<tr><td><a href="#merit" data-act="season" data-y="${y}">${esc(sname(y))}</a>${y>=cur?` <span class="pill">i gang</span>`:""}</td><td><b>${c(0)}</b></td><td>${c(1)}</td><td>${c(2)}</td></tr>`}).join("")}
+  </tbody></table></div></div>`;
+  el.innerHTML=h;
+}
+const seasonSelect=ss=>`<label style="flex-direction:row;align-items:center;gap:8px">Sæson
+    <select id="season"><option value="alle" ${S.season==="alle"?"selected":""}>Alle år</option>${ss.map(y=>`<option value="${y}" ${y===S.season?"selected":""}>${esc(sname(y))}</option>`).join("")}</select></label>`;
 
 /* ---------- Order of Merit ---------- */
 function renderMerit(){
   const el=$("#sec-merit");
   if(!S.loaded){el.innerHTML=`<div class="card empty">Henter resultater …</div>`;return}
-  const ss=seasons(); if(!ss.includes(S.season))S.season=ss[0];
+  const ss=seasons(); if(S.season==="alle")return renderAllTime(el,ss); if(!ss.includes(S.season))S.season=ss[0];
   const rows=merit(S.season);
   const evs=S.evenings.filter(e=>e.season===S.season&&played(e));
   const last=evs[0];
-  let h=`<div class="row spread"><h2>Order of Merit ${S.season}</h2>
-    <label style="flex-direction:row;align-items:center;gap:8px">Sæson
-    <select id="season">${ss.map(y=>`<option ${y===S.season?"selected":""}>${y}</option>`).join("")}</select></label></div>`;
-  if(!rows.length){el.innerHTML=h+`<div class="card empty">Ingen aftener i ${S.season} endnu.</div>`;return}
+  let h=`<div class="row spread"><h2>Order of Merit ${esc(sname(S.season))}</h2>${seasonSelect(ss)}</div>`;
+  if(!rows.length){el.innerHTML=h+`<div class="card empty">Ingen aftener i ${esc(sname(S.season))} endnu.</div>`;return}
   const lead=rows.find(r=>!isGuest(r.id));
   if(lead)h+=`<div class="card"><div class="leader"><div class="chip" aria-hidden="true"></div><div>
     <div class="small muted">Fører efter ${evs.length} ${evs.length===1?"aften":"aftener"}</div>
@@ -233,14 +271,14 @@ function renderMerit(){
   let rank=0;
   h+=`<div class="card"><div class="tbl"><table><thead><tr><th></th><th>Spiller</th><th class="num">Aftener</th><th class="num hide-sm">Indskud</th><th class="num hide-sm">Gevinst</th><th class="num">Fortjeneste</th><th class="num">Gns.</th></tr></thead><tbody>
   ${rows.map(r=>{const g=isGuest(r.id);if(!g)rank++;
-    return `<tr class="${!g&&r===lead?"lead":""}"><td class="rank">${g?"–":rank}</td><td>${esc(pname(r.id))}${g?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num muted hide-sm">${kr(r.paid)}</td><td class="num hide-sm">${kr(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td><td class="num muted">${(r.net/r.n).toLocaleString("da-DK",{maximumFractionDigits:2,minimumFractionDigits:2})}</td></tr>`}).join("")}
+    return `<tr class="${!g&&r===lead?"lead":""}"><td class="rank">${g?"–":rank}</td><td>${esc(pname(r.id))}${g?` <span class="pill">Gæst</span>`:""}</td><td class="num">${r.n}</td><td class="num muted hide-sm">${krx(r.paid)}</td><td class="num hide-sm">${krx(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td><td class="num muted">${(r.net/r.n).toLocaleString("da-DK",{maximumFractionDigits:2,minimumFractionDigits:2})}</td></tr>`}).join("")}
   </tbody></table></div><div class="small muted">Fortjeneste = gevinst minus indskud. Gns. = fortjeneste pr. aften spillet. Gæster vises, men får ingen placering og kan ikke vinde året.</div></div>`;
   if(last) h+=`<div class="card"><div class="ev-head"><h3>Seneste aften · ${esc(fmtDate(last.date))}</h3><a href="#aftener" class="small">Alle aftener</a></div>${settleTable(last)}</div>`;
   el.innerHTML=h;
 }
 function settleTable(ev){
   return `<div class="tbl"><table><thead><tr><th>Spiller</th><th class="num">Betalt</th><th class="num">Får udbetalt</th><th class="num">Netto</th></tr></thead><tbody>
-  ${evResult(ev).map(r=>`<tr><td>${esc(pname(r.id))}</td><td class="num muted">${kr(r.paid)}</td><td class="num">${kr(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td></tr>`).join("")}</tbody></table></div>`;
+  ${evResult(ev).map(r=>`<tr><td>${esc(pname(r.id))}</td><td class="num muted">${krx(r.paid)}</td><td class="num">${krx(r.won)}</td><td class="num ${netCls(r.net)}">${net(r.net)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 /* ---------- Aftener ---------- */
@@ -251,7 +289,7 @@ function renderEvenings(){
   const ss=seasons(),F=[["alle","Alle"],["spillet","Spillet"],["aflyst","Aflyst"]];
   el.innerHTML=`<div class="row spread"><h2>Aftener</h2>${writable()?`<button class="primary" data-act="new">Ny aften</button>`:""}</div>
     <div class="card" style="gap:10px"><div class="row">
-      <select id="ev-season" aria-label="Sæson"><option value="alle" ${S.evSeason==="alle"?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.evSeason?"selected":""}>${y}</option>`).join("")}</select>
+      <select id="ev-season" aria-label="Sæson"><option value="alle" ${S.evSeason==="alle"?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.evSeason?"selected":""}>${esc(sname(y))}</option>`).join("")}</select>
       <input type="search" id="ev-q" placeholder="Søg: fx stein marts, aflyst, hos ole" value="${esc(S.evQuery)}" style="flex:1 1 200px" autocomplete="off"></div>
       <div class="row chips">${F.map(([k,t])=>`<button data-act="evf" data-f="${k}" class="${S.evFilter===k?"on":""}">${t}</button>`).join("")}</div></div>
     <div id="ev-list" style="display:flex;flex-direction:column;gap:12px"></div>`;
@@ -259,7 +297,7 @@ function renderEvenings(){
 }
 function evText(ev){
   const d=new Date(ev.date+"T12:00");
-  return [fmtDate(ev.date),MONTHS[d.getMonth()],ev.season,ev.host?"hos "+pname(ev.host):"",ev.host?pname(ev.host):"",
+  return [fmtDate(ev.date),MONTHS[d.getMonth()],ev.season,sname(ev.season),ev.host?"hos "+pname(ev.host):"",ev.host?pname(ev.host):"",
     ...(ev.players||[]).map(pname),ev.cancelled?"aflyst":"spillet",ev.note||"",ev.results?"regnearket":""].join(" ").toLowerCase();
 }
 function renderEvList(){
@@ -300,7 +338,7 @@ function renderStats(){
   const all=S.statSeason==="alle";
   const evs=S.evenings.filter(e=>played(e)&&(all||String(e.season)===S.statSeason)).slice().sort((a,b)=>a.date.localeCompare(b.date));
   const cancelled=S.evenings.filter(e=>e.cancelled&&(all||String(e.season)===S.statSeason)).length;
-  let h=`<div class="row spread"><h2>Statistik</h2><select id="st-season" aria-label="Sæson"><option value="alle" ${all?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.statSeason?"selected":""}>${y}</option>`).join("")}</select></div>`;
+  let h=`<div class="row spread"><h2>Statistik</h2><select id="st-season" aria-label="Sæson"><option value="alle" ${all?"selected":""}>Alle sæsoner</option>${ss.map(y=>`<option value="${y}" ${String(y)===S.statSeason?"selected":""}>${esc(sname(y))}</option>`).join("")}</select></div>`;
   if(!evs.length){el.innerHTML=h+`<div class="card empty">Ingen spillede aftener i perioden.</div>`;return}
   /* pr. spiller */
   const P={};
@@ -367,11 +405,11 @@ const stamp=()=>new Date().toISOString().slice(0,16).replace("T","_").replace(":
 function csvRows(){
   const rows=[["Dato","Sæson","Status","Vært","Spiller","Gæst","Spil","Placering","Indskud (kr)","Gevinst (kr)","Netto (kr)","Note"]];
   S.evenings.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(ev=>{
-    const base=[ev.date,ev.season,ev.cancelled?"Aflyst":"Spillet",ev.host?pname(ev.host):""];
+    const base=[ev.date,sname(ev.season),ev.cancelled?"Aflyst":"Spillet",ev.host?pname(ev.host):""];
     if(ev.cancelled){rows.push([...base,"","","","","","","",ev.note||""]);return}
     if(ev.games&&ev.games.length){ev.games.forEach((g,gi)=>ev.players.forEach(p=>{const i=g.indexOf(p),w=i>=0?((ev.prizes||[])[i]||0):0;
       rows.push([...base,pname(p),isGuest(p)?"ja":"",gi+1,i>=0?i+1:"",ev.buyIn,w,w-ev.buyIn,ev.note||""])}))}
-    else evResult(ev).forEach(r=>rows.push([...base,pname(r.id),isGuest(r.id)?"ja":"","alle","",r.paid,r.won,r.net,(ev.note||"")+(ev.results?" (kun netto)":"")]));
+    else evResult(ev).forEach(r=>rows.push([...base,pname(r.id),isGuest(r.id)?"ja":"","alle","",r.paid??"",r.won??"",r.net,(ev.note||"")+(ev.results?" (kun netto)":"")]));
   });
   return rows;
 }
@@ -853,6 +891,7 @@ $("#login-btn").addEventListener("click",async()=>{
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(a.startsWith("ck-")){clockAct(a);return}
+  if(a==="season"){S.season=+b.dataset.y;render();window.scrollTo(0,0)}
   if(a==="new"){if(!hasSavedDraft()||S.editingId)clearDraft();location.hash="#ny"}
   if(a==="edit"){const ev=S.evenings.find(x=>x.id===id);S.editingId=id;
     S.draft={date:ev.date,host:ev.host||"",players:[...ev.players],games:(ev.games||[]).map(g=>[...g]),cancelled:!!ev.cancelled,note:ev.note||""};
@@ -884,7 +923,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;
-  if(t.id==="season"){S.season=+t.value;render()}
+  if(t.id==="season"){S.season=t.value==="alle"?"alle":+t.value;render()}
   if(t.id==="ck-sound"){SND.kind=t.value;saveSnd();unlockAudio();if(t.value==="egen"&&!SND.file){$("#ck-file").click();return}loadOwn().then(()=>snd().level(0))}
   if(t.id==="ck-rep"){SND.rep=+t.value;saveSnd()}
   if(t.id==="ck-file")pickOwn(t.files&&t.files[0]);
