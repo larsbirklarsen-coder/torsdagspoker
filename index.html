@@ -21,7 +21,7 @@
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
   --s1:#1f6feb; --s2:#d1470f; --s3:#12784a; --s4:#a8760c; --s5:#8a3ffc; --s6:#c4166c; --s7:#0f8a9d; --s8:#8a958f;
-  --s9:#7a4a1e; --s10:#d62f2f; --s11:#6b8e23; --s12:#2f3f9e; --s13:#b05fa0; --s14:#3a7d7a; --s15:#9a6a00;
+  --s9:#7a4a1e; --s10:#d62f2f; --s11:#6b8e23; --s12:#2f3f9e; --s13:#b05fa0; --s14:#3a7d7a; --s15:#9a6a00; --s16:#16201b;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
@@ -29,7 +29,7 @@
   --band:#0b3324; --band-ink:#eef5f0; --band-muted:#8fb5a1;
   --accent:#43b883; --accent-ink:#06150e; --gain:#4cc28b; --loss:#f07a70; --gold:#e0b04a; --warn-bg:#33270d; --warn-ink:#f1cf7f;
   --s1:#6ea8ff; --s2:#ff8a5c; --s3:#4cc28b; --s4:#e0b04a; --s5:#b28dff; --s6:#ff7eb6; --s7:#4fd1e0; --s8:#7d8b84;
-  --s9:#d09a6a; --s10:#ff6b6b; --s11:#a8cc5c; --s12:#8f9dff; --s13:#e29bd4; --s14:#7fcfc9; --s15:#f0c040;
+  --s9:#d09a6a; --s10:#ff6b6b; --s11:#a8cc5c; --s12:#8f9dff; --s13:#e29bd4; --s14:#7fcfc9; --s15:#f0c040; --s16:#eef3f0;
   color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -164,7 +164,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-26.2";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-26.3";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -334,7 +334,7 @@ function evCard(ev){
 
 /* ---------- Statistik ---------- */
 /* Hver spiller har sin egen faste farve i alle grafer og alle år. Gæster er grå. */
-const FIXED_COLOR={allan:1,mikael:2,stein:3,ole:4,mikkel:5,lars:6,peter:7,thomas:9,rode:10,casper:11};
+const FIXED_COLOR={allan:1,mikael:2,stein:3,ole:4,mikkel:5,lars:16,peter:6,thomas:9,rode:10,casper:7};
 const EXTRA_COLORS=[12,13,14,15];
 function pcolor(id){
   if(isGuest(id))return "var(--s8)";
