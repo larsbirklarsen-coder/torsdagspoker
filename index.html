@@ -107,6 +107,7 @@ i.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7
 .recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
 ol.top{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}ol.top li::marker{color:var(--muted);font-weight:600}ol.top li:first-child b{color:var(--gold)}
 tr.muted td{color:var(--muted)}
+.warn-text{color:var(--warn-ink);background:var(--warn-bg);padding:3px 8px;border-radius:6px;font-weight:600}
 .cellbtn{padding:2px 9px;font-variant-numeric:tabular-nums;border-radius:99px;font-weight:600}
 .chart{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:17px;font-family:var(--body)}
@@ -171,7 +172,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 /* Forbindelse. Publishable/anon-nøglen er offentlig og må gerne stå her – adgangen styres af reglerne i databasen. */
 const SB_URL="https://wmmdgdpdejqazrginqgp.supabase.co";
 const SB_KEY="sb_publishable_IxWJBCmySse3nCVfv2Oyrw_IRtgn_tR";
-const APP_VERSION="2026-11-26.7";   // skal matche version.txt – hæves ved hver udgivelse
+const APP_VERSION="2026-11-27.1";   // skal matche version.txt – hæves ved hver udgivelse
 
 const DEFAULTS={buyIn:150,games:2,minPlayers:5,maxPlayers:6,prizes:{"5":[450,300],"6":[450,300,150]},
   blinds:{minutes:12,stack:"10 × 10 · 12 × 25 · 12 × 100 · 1 × 500",
@@ -713,7 +714,7 @@ function renderRules(){
     <div class="row"><label for="s-bmin">Minutter pr. niveau<input type="number" id="s-bmin" min="1" max="120" value="${c.blinds.minutes}"></label>
       <label for="s-stack" style="flex:1 1 240px">Startstack<input id="s-stack" value="${esc(c.blinds.stack||"")}" placeholder="fx 10 × 10 · 12 × 25"></label></div>
     <label for="s-levels">Niveauer<textarea id="s-levels" spellcheck="false">${esc(levelsText(c.blinds.levels||[]))}</textarea></label>
-    <div class="row"><button class="primary" type="submit" ${S.busy?"disabled":""}>Gem regler</button></div></form>`;
+    <div class="row"><button class="primary" type="submit" ${S.busy?"disabled":""}>Gem regler</button><span id="s-state" class="small" aria-live="polite">${S.settingsSavedAt&&Date.now()-S.settingsSavedAt<8000?`<span class="gain">Gemt ✓</span>`:""}</span></div></form>`;
   h+=`<div class="card"><h3>Spillere</h3>
     ${S.players.length?`<div class="tbl"><table><tbody>${S.players.map(p=>`<tr><td><input id="pn-${esc(p.id)}" value="${esc(p.name)}" aria-label="Navn" style="width:100%;min-width:110px"></td>
       <td class="num"><label class="check" style="display:inline-flex"><input type="checkbox" id="pa-${esc(p.id)}" ${p.active!==false?"checked":""}>Aktiv</label></td>
@@ -735,6 +736,9 @@ function renderRules(){
   h+=backupCard();
   el.innerHTML=h;
 }
+/* Status ved knappen, så man kan se, om ændringerne er gemt. */
+function settingsState(html){const x=$("#s-state");if(x)x.innerHTML=html}
+function settingsChanged(){S.settingsDirty=true;S.settingsSavedAt=0;settingsState(`<span class="warn-text">Ikke gemt endnu – tryk Gem regler</span>`)}
 async function saveSettings(){
   const num=id=>Math.max(0,parseInt($(id).value,10)||0);
   const c={buyIn:num("#s-buyin"),games:Math.max(1,num("#s-games")),minPlayers:Math.max(2,num("#s-min")),prizes:{}};
@@ -744,9 +748,12 @@ async function saveSettings(){
   /* Højeste antal spillere = det højeste antal, der har præmier. */
   c.maxPlayers=Math.max(c.minPlayers,...Object.keys(c.prizes).map(Number).filter(n=>c.prizes[n].length));
   const lv=parseLevels($("#s-levels").value);
-  if(!lv){flash("Blindniveauerne kan ikke læses. Skriv ét niveau pr. linje som 10/20, eller 'pause 10'.",true);return}
+  if(!lv){flash("Blindniveauerne kan ikke læses. Skriv ét niveau pr. linje som 10/20, eller 'pause 10'.",true);settingsState(`<span class="loss">Ikke gemt – blindniveauerne kan ikke læses</span>`);return}
   c.blinds={minutes:Math.max(1,num("#s-bmin")),stack:$("#s-stack").value.trim(),levels:lv};
-  await write(async()=>{const r=await S.sb.from("config").upsert({id:"main",data:c});if(r.error)throw r.error;S.settingsDirty=false;flash("Reglerne er gemt.")});
+  settingsState(`<span class="muted">Gemmer …</span>`);
+  await write(async()=>{const r=await S.sb.from("config").upsert({id:"main",data:c});if(r.error)throw r.error;S.settingsDirty=false;S.settingsSavedAt=Date.now();flash("Reglerne er gemt.")});
+  if(S.settingsDirty)settingsState(`<span class="loss">Ikke gemt – prøv igen</span>`);
+  else setTimeout(()=>{if(!S.settingsDirty)settingsState("")},8000);
 }
 
 /* ---------- Login ---------- */
@@ -1051,7 +1058,7 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(a.startsWith("ck-")){clockAct(a);return}
   if(a==="season"){S.season=+b.dataset.y;render();window.scrollTo(0,0)}
-  if(a==="pz-hint"){const n=b.dataset.n,i=$("#pz-"+n);if(i&&PRIZE_HINTS[n]){i.value=PRIZE_HINTS[n].join(", ");S.settingsDirty=true;b.remove();livePrizes()}return}
+  if(a==="pz-hint"){const n=b.dataset.n,i=$("#pz-"+n);if(i&&PRIZE_HINTS[n]){i.value=PRIZE_HINTS[n].join(", ");settingsChanged();b.remove();livePrizes()}return}
   if(a==="st-view"){S.statView=b.dataset.v;try{localStorage.setItem("tp-statview",S.statView)}catch{}renderStats();return}
   if(a==="st-player"){S.statPlayer=id;renderStats();return}
   if(a==="st-old"){S.statShowOld=!S.statShowOld;S.streakInfo=null;renderStats();return}
@@ -1104,7 +1111,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("toggle",e=>{const m=e.target.dataset&&e.target.dataset.month;if(m&&!S.evQuery.trim())S.openMonths[m]=e.target.open},true);
 document.addEventListener("input",e=>{
-  if(e.target.closest("#f-settings"))S.settingsDirty=true;
+  if(e.target.closest("#f-settings"))settingsChanged();
   if(e.target.dataset&&e.target.dataset.prize||e.target.id==="s-buyin")livePrizes();
   if(e.target.id==="ev-q"){S.evQuery=e.target.value;renderEvList()}
   if(e.target.id==="ev-note"&&S.draft){S.draft.note=e.target.value;persistDraft()}
